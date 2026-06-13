@@ -1,0 +1,43 @@
+require 'pathname'
+
+ws_dir = Pathname.new(__dir__)
+ws_dir = ws_dir.parent until
+  File.exist?("#{ws_dir}/node_modules/react-native-macos/scripts/react_native_pods.rb") ||
+  ws_dir.expand_path.to_s == '/'
+require "#{ws_dir}/node_modules/react-native-macos/scripts/react_native_pods.rb"
+
+prepare_react_native_project!
+
+target 'ResendMail-macOS' do
+  platform :macos, '14.0'
+  use_native_modules!
+
+  # Flags change depending on the env values.
+  flags = get_default_flags()
+
+  use_react_native!(
+    :path => '../node_modules/react-native-macos',
+    :fabric_enabled => ENV['RCT_NEW_ARCH_ENABLED'] == '1',
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  post_install do |installer|
+    react_native_post_install(installer)
+
+    # Xcode 26 / clang ships a stricter consteval evaluator that rejects fmt 11's
+    # consteval format-string constructor ("call to consteval function is not a
+    # constant expression"). fmt/base.h decides FMT_CONSTEVAL via an unguarded #if
+    # chain, so a -D compiler define just gets redefined away by the header. Patch
+    # the header on disk so FMT_CONSTEVAL always expands to nothing; the constructors
+    # then compile as plain (runtime/constexpr) functions with identical behavior.
+    # Re-applied on every `pod install` because Pods/ is not checked in.
+    fmt_base = File.join(installer.sandbox.root, 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      contents = File.read(fmt_base)
+      patched = contents.gsub("#  define FMT_CONSTEVAL consteval",
+                              "#  define FMT_CONSTEVAL  // patched: Apple clang (Xcode 26) consteval too strict for fmt 11")
+      File.write(fmt_base, patched) if patched != contents
+    end
+  end
+end
