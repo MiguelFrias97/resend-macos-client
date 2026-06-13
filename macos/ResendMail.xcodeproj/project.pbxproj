@@ -13,10 +13,13 @@
 		514201582437B4B40078DB4F /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 514201572437B4B40078DB4F /* main.m */; };
 		6BB992A651FEDFBFF1C54963 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0B3DA85B4C91557D6C766591 /* PrivacyInfo.xcprivacy */; };
 		77CD8020EE672B3790067CDE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0B3DA85B4C91557D6C766591 /* PrivacyInfo.xcprivacy */; };
+		A7AF7060912D4E5D3C34C3A9 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B1C5B74F99DB4457B99332 /* Keychain.swift */; };
 		B7BC3B641C1F594CB7B781A3 /* libPods-ResendMail-macOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F62C78B4439ED3FE59CB6AF2 /* libPods-ResendMail-macOS.a */; };
+		CD0FCFAAA9BDBDE9EF84D082 /* Keychain.m in Sources */ = {isa = PBXBuildFile; fileRef = B4280574C7D58F532E5D5457 /* Keychain.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		04712C1018892FB84770E21F /* ResendMail-macOS-Bridging-Header.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "ResendMail-macOS-Bridging-Header.h"; sourceTree = "<group>"; };
 		0B3DA85B4C91557D6C766591 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* ResendMail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ResendMail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		48FC22CAE65ED8C8A35311F7 /* Pods-ResendMail-macOS.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ResendMail-macOS.release.xcconfig"; path = "Target Support Files/Pods-ResendMail-macOS/Pods-ResendMail-macOS.release.xcconfig"; sourceTree = "<group>"; };
@@ -28,7 +31,9 @@
 		514201562437B4B40078DB4F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		514201572437B4B40078DB4F /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		514201592437B4B40078DB4F /* ResendMail.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ResendMail.entitlements; sourceTree = "<group>"; };
+		59B1C5B74F99DB4457B99332 /* Keychain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		7E5EAE6945A9C645591FA057 /* Pods-ResendMail-macOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ResendMail-macOS.debug.xcconfig"; path = "Target Support Files/Pods-ResendMail-macOS/Pods-ResendMail-macOS.debug.xcconfig"; sourceTree = "<group>"; };
+		B4280574C7D58F532E5D5457 /* Keychain.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = Keychain.m; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F62C78B4439ED3FE59CB6AF2 /* libPods-ResendMail-macOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ResendMail-macOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -71,6 +76,9 @@
 				514201562437B4B40078DB4F /* Info.plist */,
 				514201572437B4B40078DB4F /* main.m */,
 				514201592437B4B40078DB4F /* ResendMail.entitlements */,
+				59B1C5B74F99DB4457B99332 /* Keychain.swift */,
+				B4280574C7D58F532E5D5457 /* Keychain.m */,
+				04712C1018892FB84770E21F /* ResendMail-macOS-Bridging-Header.h */,
 			);
 			path = "ResendMail-macOS";
 			sourceTree = "<group>";
@@ -330,6 +338,8 @@
 			files = (
 				514201582437B4B40078DB4F /* main.m in Sources */,
 				5142014D2437B4B30078DB4F /* AppDelegate.mm in Sources */,
+				A7AF7060912D4E5D3C34C3A9 /* Keychain.swift in Sources */,
+				CD0FCFAAA9BDBDE9EF84D082 /* Keychain.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -408,6 +418,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = ResendMail;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "ResendMail-macOS/ResendMail-macOS-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -431,6 +442,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = ResendMail;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "ResendMail-macOS/ResendMail-macOS-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
