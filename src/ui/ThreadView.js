@@ -1,12 +1,14 @@
 import React, {useEffect, useState} from 'react';
 import {ScrollView, View, Text, Pressable} from 'react-native';
 import MessageBody from './MessageBody';
+import {useTheme} from './useTheme';
 
 // Renders a thread's messages. Only expanded messages mount a MessageBody (and
 // thus fetch their body / spin up a WKWebView), so opening a long thread doesn't
 // fire a fetch per message. The most recent message is expanded by default;
 // tapping any header toggles it.
 export default function ThreadView({messages, bodyDeps, allowRemote}) {
+  const theme = useTheme();
   const ids = messages.map(m => m.id).join(',');
   const [expanded, setExpanded] = useState({});
 
@@ -20,22 +22,22 @@ export default function ThreadView({messages, bodyDeps, allowRemote}) {
   const toggle = id => setExpanded(e => ({...e, [id]: !e[id]}));
 
   return (
-    <ScrollView style={{flex: 1}}>
+    <ScrollView style={{flex: 1, backgroundColor: theme.bg}}>
       {messages.map(m => {
         const isOpen = Boolean(expanded[m.id]);
         return (
-          <View key={m.id} style={{borderBottomWidth: 1, borderBottomColor: '#eee'}}>
+          <View key={m.id} style={{borderBottomWidth: 1, borderBottomColor: theme.divider}}>
             <Pressable
               onPress={() => toggle(m.id)}
               style={{
                 paddingHorizontal: 16,
                 paddingVertical: 8,
-                backgroundColor: m.direction === 'sent' ? '#f6f4fb' : '#fff',
+                backgroundColor: m.direction === 'sent' ? theme.sentBg : theme.bg,
               }}>
-              <Text style={{fontWeight: '600'}}>
+              <Text style={{fontWeight: '600', color: theme.text}}>
                 {m.direction === 'sent' ? 'You' : m.from}
               </Text>
-              <Text style={{color: '#999', fontSize: 12}}>{m.receivedAt}</Text>
+              <Text style={{color: theme.textMuted, fontSize: 12}}>{m.receivedAt}</Text>
             </Pressable>
             {isOpen ? (
               <View style={{height: 240}}>
