@@ -54,9 +54,15 @@ class AttachmentFile: NSObject {
       reject("bad_url", "invalid download url", nil)
       return
     }
-    let task = URLSession.shared.dataTask(with: remote) { data, _, error in
+    let task = URLSession.shared.dataTask(with: remote) { data, response, error in
       if let error = error {
         reject("download", error.localizedDescription, error)
+        return
+      }
+      // A non-200 presigned URL (expired/forbidden) returns error=nil with an
+      // error body — guard so we never write that body as the file.
+      if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+        reject("download", "http \(http.statusCode)", nil)
         return
       }
       guard let data = data else {
@@ -66,7 +72,7 @@ class AttachmentFile: NSObject {
       do {
         let safeName = (name as NSString).lastPathComponent
         let fileURL = try self.dir(for: messageId).appendingPathComponent(safeName)
-        try data.write(to: fileURL)
+        try data.write(to: fileURL, options: .atomic)
         if quarantine {
           self.setQuarantine(fileURL.path)
         }

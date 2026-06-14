@@ -90,7 +90,9 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       },
       onLoaded: async id => {
         const list = await store.listAttachments(id);
-        setAttachments(list);
+        // Inline (cid) images are rendered in the body — don't also list them
+        // as saveable attachment chips.
+        setAttachments(list.filter(a => a.disposition !== 'inline'));
       },
     };
     // downloadToCache reads servicesRef.current, which is stable once ready.
