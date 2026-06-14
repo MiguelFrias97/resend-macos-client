@@ -28,6 +28,7 @@ export default function MessageBody({messageId, allowRemote = false, deps}) {
         }
       }
       if (!cancelled) setHtml(bodyHtml || '');
+      if (!cancelled && deps.onLoaded) deps.onLoaded(messageId);
     })();
     return () => {
       cancelled = true;
