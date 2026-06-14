@@ -1,4 +1,9 @@
-import {sanitizeFilename, isDangerousFilename, typeMismatch} from '../../src/files/attachmentSafety';
+import {
+  sanitizeFilename,
+  isDangerousFilename,
+  typeMismatch,
+  isInlineImage,
+} from '../../src/files/attachmentSafety';
 
 test('sanitizeFilename strips path traversal, control chars, and RTL override', () => {
   expect(sanitizeFilename('../../etc/passwd')).toBe('passwd');
@@ -19,4 +24,11 @@ test('typeMismatch flags declared-type vs extension disagreement', () => {
 
 test('typeMismatch does not flag a file that has no extension', () => {
   expect(typeMismatch('image/png', 'screenshot')).toBe(false);
+});
+
+test('isInlineImage only hides inline parts that have a content id', () => {
+  expect(isInlineImage({disposition: 'inline', contentId: 'cid1'})).toBe(true);
+  expect(isInlineImage({disposition: 'inline', contentId: null})).toBe(false);
+  expect(isInlineImage({disposition: 'attachment', contentId: 'cid1'})).toBe(false);
+  expect(isInlineImage({disposition: null})).toBe(false);
 });

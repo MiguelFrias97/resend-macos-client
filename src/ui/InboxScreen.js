@@ -7,7 +7,12 @@ import {createLocalStore} from '../data/localStore';
 import {openDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
 import {startSyncLoop} from '../core/sync';
-import {sanitizeFilename} from '../files/attachmentSafety';
+import {
+  sanitizeFilename,
+  isDangerousFilename,
+  typeMismatch,
+  isInlineImage,
+} from '../files/attachmentSafety';
 
 export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const [messages, setMessages] = useState([]);
@@ -76,7 +81,16 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
           const AttachmentFile = require('../native/AttachmentFile');
           const atts = await store.listAttachments(id);
           for (const att of atts) {
-            if (!att.contentId || att.downloaded) continue;
+            if (!att.contentId) continue;
+            // Skip only if we have it AND the cached file is still on disk
+            // (the recorded flag can go stale if the cache was evicted).
+            if (
+              att.downloaded &&
+              att.localPath &&
+              (await AttachmentFile.exists(att.localPath))
+            ) {
+              continue;
+            }
             // Lowercase the name: WKWebView lowercases the cidcache:// host, so
             // the cache filename must match for uppercase Content-IDs to resolve.
             const name = String(att.contentId).toLowerCase();
@@ -91,8 +105,9 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       onLoaded: async id => {
         const list = await store.listAttachments(id);
         // Inline (cid) images are rendered in the body — don't also list them
-        // as saveable attachment chips.
-        setAttachments(list.filter(a => a.disposition !== 'inline'));
+        // as saveable attachment chips. Unreferenced 'inline' parts (no cid)
+        // are still shown so they're never lost.
+        setAttachments(list.filter(a => !isInlineImage(a)));
       },
     };
     // downloadToCache reads servicesRef.current, which is stable once ready.
@@ -109,10 +124,12 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     try {
       const AttachmentFile = require('../native/AttachmentFile');
       const safe = sanitizeFilename(att.filename);
+      const dangerous =
+        isDangerousFilename(att.filename) || typeMismatch(att.contentType, att.filename);
       // Always download a fresh quarantined copy for saving — the cid cache (if
       // any) is non-quarantined and stored under a different name.
       const path = await downloadToCache(selected.id, att, safe, true);
-      await AttachmentFile.saveAs(path, safe);
+      await AttachmentFile.saveAs(path, safe, dangerous);
     } catch (e) {
       // User cancelled the save panel, or a transient failure — nothing to surface.
     }

@@ -57,3 +57,11 @@ export function typeMismatch(contentType, name) {
   if (!ext) return false; // no extension → can't claim a mismatch
   return !exts.includes(ext);
 }
+
+// An inline image is referenced from the body via its content id. Only such
+// parts are rendered inline (and therefore hidden from the saveable tray); an
+// 'inline' part without a content id is unreferenced, so treat it as a normal
+// attachment instead of losing it entirely.
+export function isInlineImage(att) {
+  return att.disposition === 'inline' && Boolean(att.contentId);
+}

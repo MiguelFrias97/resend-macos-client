@@ -7,5 +7,6 @@ export const cacheDir = messageId => AttachmentFile.cacheDir(messageId);
 // base64 across the bridge). quarantine=false for inline cid images.
 export const downloadToCache = (messageId, name, url, quarantine = true) =>
   AttachmentFile.downloadToCache(messageId, name, url, quarantine);
-export const saveAs = (srcPath, suggestedName) =>
-  AttachmentFile.saveAs(srcPath, suggestedName);
+export const exists = path => AttachmentFile.exists(path);
+export const saveAs = (srcPath, suggestedName, dangerous = false) =>
+  AttachmentFile.saveAs(srcPath, suggestedName, dangerous);

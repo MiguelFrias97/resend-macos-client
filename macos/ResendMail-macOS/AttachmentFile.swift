@@ -84,11 +84,33 @@ class AttachmentFile: NSObject {
     task.resume()
   }
 
-  @objc(saveAs:suggestedName:resolver:rejecter:)
-  func saveAs(_ srcPath: String, suggestedName: String,
+  @objc(exists:resolver:rejecter:)
+  func exists(_ path: String,
+              resolver resolve: RCTPromiseResolveBlock,
+              rejecter reject: RCTPromiseRejectBlock) {
+    resolve(FileManager.default.fileExists(atPath: path))
+  }
+
+  @objc(saveAs:suggestedName:dangerous:resolver:rejecter:)
+  func saveAs(_ srcPath: String, suggestedName: String, dangerous: Bool,
               resolver resolve: @escaping RCTPromiseResolveBlock,
               rejecter reject: @escaping RCTPromiseRejectBlock) {
     DispatchQueue.main.async {
+      // Warn before saving a file whose type looks unsafe or mismatched.
+      if dangerous {
+        let alert = NSAlert()
+        alert.messageText = "This attachment may be unsafe"
+        alert.informativeText =
+          "\"\(suggestedName)\" looks like it could be executable, or its type "
+          + "doesn't match its name. Only save it if you trust the sender."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Save Anyway")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() != .alertFirstButtonReturn {
+          reject("cancelled", "user declined unsafe save", nil)
+          return
+        }
+      }
       let panel = NSSavePanel()
       panel.nameFieldStringValue = (suggestedName as NSString).lastPathComponent
       guard panel.runModal() == .OK, let dest = panel.url else {
