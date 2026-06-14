@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS messages (
   subject TEXT,
   received_at TEXT,
   seen INTEGER DEFAULT 0,
+  starred INTEGER DEFAULT 0,
+  archived INTEGER DEFAULT 0,
   html TEXT,
   text TEXT,
   body_fetched INTEGER DEFAULT 0,
@@ -24,6 +26,30 @@ async function runSchema(db) {
   }
 }
 
+const FILTERS = {
+  inbox: `direction='received' AND archived=0`,
+  unread: `direction='received' AND archived=0 AND seen=0`,
+  starred: `direction='received' AND starred=1 AND archived=0`,
+  archive: `direction='received' AND archived=1`,
+};
+
+function mapRow(r) {
+  return {
+    id: r.id,
+    threadId: r.thread_id,
+    from: r.sender,
+    subject: r.subject,
+    receivedAt: r.received_at,
+    seen: Boolean(r.seen),
+    starred: Boolean(r.starred),
+    archived: Boolean(r.archived),
+    direction: r.direction ?? 'received',
+    html: r.html,
+    text: r.text,
+    bodyFetched: Boolean(r.body_fetched),
+  };
+}
+
 export async function createLocalStore(db) {
   await runSchema(db);
 
@@ -40,19 +66,45 @@ export async function createLocalStore(db) {
     );
   }
 
-  async function listInbox() {
+  async function listMessages(filter = 'inbox') {
+    const where = FILTERS[filter] ?? FILTERS.inbox;
     const res = await db.execute(
-      `SELECT id, thread_id, sender, subject, received_at, seen FROM messages WHERE direction='received' ORDER BY received_at DESC`,
+      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction FROM messages WHERE ${where} ORDER BY received_at DESC`,
     );
-    return res.rows.map(r => ({
-      id: r.id,
-      threadId: r.thread_id,
-      from: r.sender,
-      subject: r.subject,
-      receivedAt: r.received_at,
-      seen: Boolean(r.seen),
-    }));
+    return res.rows.map(mapRow);
   }
+
+  async function listInbox() {
+    return listMessages('inbox');
+  }
+
+  async function searchMessages(query) {
+    const like = `%${query}%`;
+    const res = await db.execute(
+      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction FROM messages WHERE direction='received' AND (sender LIKE ? OR subject LIKE ? OR text LIKE ?) ORDER BY received_at DESC`,
+      [like, like, like],
+    );
+    return res.rows.map(mapRow);
+  }
+
+  async function listThread(threadId) {
+    const res = await db.execute(
+      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction, html, text, body_fetched FROM messages WHERE thread_id=? ORDER BY received_at ASC, id ASC`,
+      [threadId],
+    );
+    return res.rows.map(mapRow);
+  }
+
+  async function setFlag(column, id, value) {
+    await db.execute(`UPDATE messages SET ${column}=? WHERE id=?`, [
+      value ? 1 : 0,
+      id,
+    ]);
+  }
+
+  const setSeen = (id, value) => setFlag('seen', id, value);
+  const setStarred = (id, value) => setFlag('starred', id, value);
+  const setArchived = (id, value) => setFlag('archived', id, value);
 
   async function saveBody(id, {html, text}) {
     await db.execute(
@@ -173,14 +225,20 @@ export async function createLocalStore(db) {
 
   async function insertSentMessage(m) {
     await db.execute(
-      `INSERT INTO messages (id, thread_id, sender, subject, received_at, direction) VALUES (?, ?, ?, ?, ?, 'sent') ON CONFLICT(id) DO UPDATE SET direction='sent'`,
-      [m.id, m.threadId, m.from, m.subject, m.receivedAt],
+      `INSERT INTO messages (id, thread_id, sender, subject, received_at, direction, html, body_fetched) VALUES (?, ?, ?, ?, ?, 'sent', ?, 1) ON CONFLICT(id) DO UPDATE SET direction='sent', html=excluded.html, body_fetched=1`,
+      [m.id, m.threadId, m.from, m.subject, m.receivedAt, m.html ?? null],
     );
   }
 
   return {
     upsertMessage,
     listInbox,
+    listMessages,
+    searchMessages,
+    listThread,
+    setSeen,
+    setStarred,
+    setArchived,
     saveBody,
     getMessage,
     saveAttachments,
