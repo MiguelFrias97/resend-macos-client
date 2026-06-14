@@ -48,3 +48,17 @@ test('listAllReceived pages through via the after cursor and stops on a partial 
   expect(calls).toHaveLength(2);
   expect(calls[1]).toContain('after=p1_1');
 });
+
+test('getReceivedEmail returns normalized body content', async () => {
+  const fetchImpl = async () => ({status: 200, json: async () => ({id: 'recv_1', html: '<p>Hi</p>', text: 'Hi', headers: {}, attachments: []})});
+  const source = createMailSource({apiKey: 're_x', fetchImpl});
+  const body = await source.getReceivedEmail('recv_1');
+  expect(body.html).toBe('<p>Hi</p>');
+});
+
+test('getAttachment returns metadata with downloadUrl', async () => {
+  const fetchImpl = async () => ({status: 200, json: async () => ({id: 'a1', filename: 'a.pdf', content_type: 'application/pdf', size: 9, download_url: 'https://d/x'})});
+  const source = createMailSource({apiKey: 're_x', fetchImpl});
+  const a = await source.getAttachment('recv_1', 'a1');
+  expect(a.downloadUrl).toBe('https://d/x');
+});

@@ -1,5 +1,9 @@
 import {createResendClient} from './resendClient';
-import {validateReceivedEmail} from '../data/validators';
+import {
+  validateReceivedEmail,
+  validateReceivedEmailContent,
+  validateAttachmentMeta,
+} from '../data/validators';
 
 export function createMailSource({apiKey, fetchImpl} = {}) {
   const client = createResendClient({apiKey, fetchImpl});
@@ -49,5 +53,29 @@ export function createMailSource({apiKey, fetchImpl} = {}) {
     return all;
   }
 
-  return {listReceived, listAllReceived};
+  async function getReceivedEmail(id) {
+    const res = await client.request(`/emails/receiving/${encodeURIComponent(id)}`);
+    if (res.status !== 200) throw new Error(`getReceivedEmail failed: ${res.status}`);
+    return validateReceivedEmailContent(await res.json());
+  }
+
+  async function getAttachment(emailId, attId) {
+    const res = await client.request(`/emails/receiving/${encodeURIComponent(emailId)}/attachments/${encodeURIComponent(attId)}`);
+    if (res.status !== 200) throw new Error(`getAttachment failed: ${res.status}`);
+    return validateAttachmentMeta(await res.json());
+  }
+
+  async function downloadBytes(downloadUrl) {
+    const res = await (fetchImpl || fetch)(downloadUrl);
+    if (res.status !== 200) throw new Error(`downloadBytes failed: ${res.status}`);
+    return res;
+  }
+
+  return {
+    listReceived,
+    listAllReceived,
+    getReceivedEmail,
+    getAttachment,
+    downloadBytes,
+  };
 }

@@ -14,14 +14,19 @@
 		6BB992A651FEDFBFF1C54963 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0B3DA85B4C91557D6C766591 /* PrivacyInfo.xcprivacy */; };
 		77CD8020EE672B3790067CDE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0B3DA85B4C91557D6C766591 /* PrivacyInfo.xcprivacy */; };
 		A7AF7060912D4E5D3C34C3A9 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B1C5B74F99DB4457B99332 /* Keychain.swift */; };
+		AB4D112AEC4C5F24AE883137 /* AttachmentFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22C47278F2962FE3F7BC4324 /* AttachmentFile.swift */; };
+		AE12D1FCC406BD816CED8249 /* MessageBodyView.m in Sources */ = {isa = PBXBuildFile; fileRef = F5A1F62B355F8C9A43CB2081 /* MessageBodyView.m */; };
 		B7BC3B641C1F594CB7B781A3 /* libPods-ResendMail-macOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F62C78B4439ED3FE59CB6AF2 /* libPods-ResendMail-macOS.a */; };
+		C895964E9A5B9C7143580070 /* AttachmentFile.m in Sources */ = {isa = PBXBuildFile; fileRef = A493B528B4F63A1776F6FD04 /* AttachmentFile.m */; };
 		CD0FCFAAA9BDBDE9EF84D082 /* Keychain.m in Sources */ = {isa = PBXBuildFile; fileRef = B4280574C7D58F532E5D5457 /* Keychain.m */; };
+		E3A4C3E1F3D67A2E92F00BA8 /* MessageBodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BF693B53A8DCF00FE7A7B71 /* MessageBodyView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		04712C1018892FB84770E21F /* ResendMail-macOS-Bridging-Header.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "ResendMail-macOS-Bridging-Header.h"; sourceTree = "<group>"; };
 		0B3DA85B4C91557D6C766591 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* ResendMail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ResendMail.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		22C47278F2962FE3F7BC4324 /* AttachmentFile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AttachmentFile.swift; sourceTree = "<group>"; };
 		48FC22CAE65ED8C8A35311F7 /* Pods-ResendMail-macOS.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ResendMail-macOS.release.xcconfig"; path = "Target Support Files/Pods-ResendMail-macOS/Pods-ResendMail-macOS.release.xcconfig"; sourceTree = "<group>"; };
 		514201492437B4B30078DB4F /* ResendMail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ResendMail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5142014B2437B4B30078DB4F /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -32,9 +37,12 @@
 		514201572437B4B40078DB4F /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		514201592437B4B40078DB4F /* ResendMail.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ResendMail.entitlements; sourceTree = "<group>"; };
 		59B1C5B74F99DB4457B99332 /* Keychain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		5BF693B53A8DCF00FE7A7B71 /* MessageBodyView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MessageBodyView.swift; sourceTree = "<group>"; };
 		7E5EAE6945A9C645591FA057 /* Pods-ResendMail-macOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ResendMail-macOS.debug.xcconfig"; path = "Target Support Files/Pods-ResendMail-macOS/Pods-ResendMail-macOS.debug.xcconfig"; sourceTree = "<group>"; };
+		A493B528B4F63A1776F6FD04 /* AttachmentFile.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = AttachmentFile.m; sourceTree = "<group>"; };
 		B4280574C7D58F532E5D5457 /* Keychain.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = Keychain.m; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		F5A1F62B355F8C9A43CB2081 /* MessageBodyView.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = MessageBodyView.m; sourceTree = "<group>"; };
 		F62C78B4439ED3FE59CB6AF2 /* libPods-ResendMail-macOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ResendMail-macOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -79,6 +87,10 @@
 				59B1C5B74F99DB4457B99332 /* Keychain.swift */,
 				B4280574C7D58F532E5D5457 /* Keychain.m */,
 				04712C1018892FB84770E21F /* ResendMail-macOS-Bridging-Header.h */,
+				5BF693B53A8DCF00FE7A7B71 /* MessageBodyView.swift */,
+				F5A1F62B355F8C9A43CB2081 /* MessageBodyView.m */,
+				22C47278F2962FE3F7BC4324 /* AttachmentFile.swift */,
+				A493B528B4F63A1776F6FD04 /* AttachmentFile.m */,
 			);
 			path = "ResendMail-macOS";
 			sourceTree = "<group>";
@@ -340,6 +352,10 @@
 				5142014D2437B4B30078DB4F /* AppDelegate.mm in Sources */,
 				A7AF7060912D4E5D3C34C3A9 /* Keychain.swift in Sources */,
 				CD0FCFAAA9BDBDE9EF84D082 /* Keychain.m in Sources */,
+				E3A4C3E1F3D67A2E92F00BA8 /* MessageBodyView.swift in Sources */,
+				AE12D1FCC406BD816CED8249 /* MessageBodyView.m in Sources */,
+				AB4D112AEC4C5F24AE883137 /* AttachmentFile.swift in Sources */,
+				C895964E9A5B9C7143580070 /* AttachmentFile.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
