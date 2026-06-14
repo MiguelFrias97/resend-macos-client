@@ -91,6 +91,19 @@ class AttachmentFile: NSObject {
     resolve(FileManager.default.fileExists(atPath: path))
   }
 
+  // Read a cached file as base64 — used to embed forwarded attachment bytes
+  // directly in the send payload (durable, unlike a presigned URL that expires).
+  @objc(readBase64:resolver:rejecter:)
+  func readBase64(_ path: String,
+                  resolver resolve: RCTPromiseResolveBlock,
+                  rejecter reject: RCTPromiseRejectBlock) {
+    guard let data = FileManager.default.contents(atPath: path) else {
+      reject("read", "file not found: \(path)", nil)
+      return
+    }
+    resolve(data.base64EncodedString())
+  }
+
   @objc(saveAs:suggestedName:dangerous:resolver:rejecter:)
   func saveAs(_ srcPath: String, suggestedName: String, dangerous: Bool,
               resolver resolve: @escaping RCTPromiseResolveBlock,

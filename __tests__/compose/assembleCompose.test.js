@@ -5,6 +5,7 @@ import {
 test('parseRecipients splits and unwraps addresses', () => {
   expect(parseRecipients('a@x')).toEqual(['a@x']);
   expect(parseRecipients('A <a@x>, b@y')).toEqual(['a@x', 'b@y']);
+  expect(parseRecipients('a@x; b@y')).toEqual(['a@x', 'b@y']);
   expect(parseRecipients('')).toEqual([]);
 });
 
@@ -31,7 +32,7 @@ test('assembleComposePayload builds a payload with inline images', () => {
   ]);
 });
 
-test('assembleForwardPayload quotes the original and re-attaches files via path', () => {
+test('assembleForwardPayload quotes the original and re-attaches files as base64 content', () => {
   const original = {from: 'Marcus <marcus@acme.com>', subject: 'Deal', receivedAt: 'now'};
   const p = assembleForwardPayload({
     from: 'me@you.com',
@@ -39,7 +40,7 @@ test('assembleForwardPayload quotes the original and re-attaches files via path'
     original,
     originalHtml: '<p>the deal</p>',
     replyHtml: '<p>see below</p>',
-    originalAttachments: [{filename: 'doc.pdf', downloadUrl: 'https://d/x', contentType: 'application/pdf'}],
+    originalAttachments: [{filename: 'doc.pdf', content: 'BBBB', contentType: 'application/pdf'}],
   });
   expect(p.from).toBe('me@you.com');
   expect(p.to).toEqual(['c@z']);
@@ -47,6 +48,6 @@ test('assembleForwardPayload quotes the original and re-attaches files via path'
   expect(p.html).toContain('see below');
   expect(p.html).toContain('gmail_quote');
   expect(p.attachments).toEqual([
-    {filename: 'doc.pdf', path: 'https://d/x', content_type: 'application/pdf'},
+    {filename: 'doc.pdf', content: 'BBBB', content_type: 'application/pdf'},
   ]);
 });

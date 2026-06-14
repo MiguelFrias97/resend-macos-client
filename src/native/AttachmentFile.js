@@ -8,5 +8,6 @@ export const cacheDir = messageId => AttachmentFile.cacheDir(messageId);
 export const downloadToCache = (messageId, name, url, quarantine = true) =>
   AttachmentFile.downloadToCache(messageId, name, url, quarantine);
 export const exists = path => AttachmentFile.exists(path);
+export const readBase64 = path => AttachmentFile.readBase64(path);
 export const saveAs = (srcPath, suggestedName, dangerous = false) =>
   AttachmentFile.saveAs(srcPath, suggestedName, dangerous);

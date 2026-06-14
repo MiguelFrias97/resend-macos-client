@@ -68,13 +68,19 @@ export function replyPayloadError(payload) {
   return null;
 }
 
-export function assembleReplyPayload({original, replyHtml, originalHtml, inlineImages = [], attachments = []}) {
-  const inlineParts = inlineImages.map(img => ({
+// Map the editor's inline images to Resend cid attachment parts. Shared by
+// reply/compose/forward assembly.
+export function inlineAttachmentParts(inlineImages) {
+  return (inlineImages || []).map(img => ({
     filename: img.filename,
     content: img.base64,
     content_type: img.contentType,
     content_id: img.contentId,
   }));
+}
+
+export function assembleReplyPayload({original, replyHtml, originalHtml, inlineImages = [], attachments = []}) {
+  const inlineParts = inlineAttachmentParts(inlineImages);
   return {
     from: extractEmail((original.to && original.to[0]) || ''),
     to: extractEmail(original.from),

@@ -35,7 +35,7 @@ test('forward: prefills Fwd subject and assembles a forward payload', async () =
   const forward = {
     original: {from: 'Marcus <marcus@acme.com>', subject: 'Deal', receivedAt: 'now'},
     originalHtml: '<p>the deal</p>',
-    originalAttachments: [{filename: 'doc.pdf', downloadUrl: 'https://d/x', contentType: 'application/pdf'}],
+    originalAttachments: [{filename: 'doc.pdf', content: 'BBBB', contentType: 'application/pdf'}],
   };
   const {getByPlaceholderText, getByText} = render(
     <ComposeSheet mode="forward" defaultFrom="me@you.com" forward={forward} onSend={onSend} onClose={() => {}} />,
@@ -46,5 +46,5 @@ test('forward: prefills Fwd subject and assembles a forward payload', async () =
   await waitFor(() => expect(onSend).toHaveBeenCalled());
   const payload = onSend.mock.calls[0][0];
   expect(payload.subject).toBe('Fwd: Deal');
-  expect(payload.attachments).toEqual([{filename: 'doc.pdf', path: 'https://d/x', content_type: 'application/pdf'}]);
+  expect(payload.attachments).toEqual([{filename: 'doc.pdf', content: 'BBBB', content_type: 'application/pdf'}]);
 });

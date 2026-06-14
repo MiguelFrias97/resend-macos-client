@@ -203,7 +203,8 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     loadListRef.current();
   };
 
-  // Load a received message's body, fetching+caching it if not present.
+  // Load a received message's body (and persist its attachment metadata),
+  // fetching+caching if not present.
   const loadBody = async id => {
     const {store, source} = servicesRef.current;
     let msg = await store.getMessage(id);
@@ -211,6 +212,9 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       try {
         const fetched = await source.getReceivedEmail(id);
         await store.saveBody(id, {html: fetched.html, text: fetched.text});
+        if (fetched.attachments && fetched.attachments.length) {
+          await store.saveAttachments(id, fetched.attachments);
+        }
         msg = {...msg, html: fetched.html};
       } catch (e) {
         // Network issue — fall back to whatever we have.
@@ -231,11 +235,13 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
 
   // Compose/forward both send through the outbox; no thread, no sent-message row.
   const onSendMail = async payload => {
-    if (!payload.from || !payload.to || payload.to.length === 0) {
-      return {
-        ok: false,
-        error: new Error('A From and at least one recipient are required.'),
-      };
+    const recipients = Array.isArray(payload.to) ? payload.to : [];
+    const isEmail = a => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a || '');
+    if (!isEmail(payload.from)) {
+      return {ok: false, error: new Error('Enter a valid From address.')};
+    }
+    if (!recipients.length || !recipients.every(isEmail)) {
+      return {ok: false, error: new Error('Enter at least one valid recipient.')};
     }
     const {store, sender} = servicesRef.current;
     const id = `out_${Math.random().toString(36).slice(2)}`;
@@ -243,28 +249,32 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   };
 
   const startForward = async () => {
-    const {store, source} = servicesRef.current;
+    const {store} = servicesRef.current;
     const html = await loadBody(selected.id);
-    // Re-attach the original's file attachments via their download URL.
+    // Re-attach the original's file attachments by downloading their bytes and
+    // embedding them as base64 content (durable across an outbox retry, unlike a
+    // presigned URL that would expire).
     const atts = (await store.listAttachments(selected.id)).filter(
       a => !isInlineImage(a),
     );
     const originalAttachments = [];
     for (const att of atts) {
-      let url = att.downloadUrl;
-      if (!url) {
-        try {
-          url = (await source.getAttachment(selected.id, att.id)).downloadUrl;
-        } catch (e) {
-          url = null;
-        }
-      }
-      if (url) {
+      try {
+        const AttachmentFile = require('../native/AttachmentFile');
+        const path = await downloadToCache(
+          selected.id,
+          att,
+          sanitizeFilename(att.filename),
+          false,
+        );
+        const content = await AttachmentFile.readBase64(path);
         originalAttachments.push({
           filename: att.filename,
-          downloadUrl: url,
+          content,
           contentType: att.contentType,
         });
+      } catch (e) {
+        // Skip an attachment we couldn't fetch rather than block the forward.
       }
     }
     setForwardData({

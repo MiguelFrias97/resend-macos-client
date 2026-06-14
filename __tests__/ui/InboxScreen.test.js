@@ -64,3 +64,22 @@ test('selecting a message marks it read and loads its thread', async () => {
   await waitFor(() => expect(setSeen).toHaveBeenCalledWith('m1', true));
   expect(listThread).toHaveBeenCalledWith('t1');
 });
+
+test('the Compose button opens the compose sheet', async () => {
+  const store = {
+    listMessages: async () => [],
+    searchMessages: async () => [],
+    getSetting: async () => 'me@you.com',
+    upsertMessage: async () => {},
+  };
+  const makeStore = async () => store;
+  const makeSource = () => ({listReceived: async () => []});
+  const {getByText, queryByPlaceholderText, getByPlaceholderText} = render(
+    <InboxScreen apiKey="re_x" makeStore={makeStore} makeSource={makeSource} />,
+  );
+  await waitFor(() => expect(getByText('＋ Compose')).toBeTruthy());
+  expect(queryByPlaceholderText('To')).toBeNull();
+  fireEvent.press(getByText('＋ Compose'));
+  expect(getByPlaceholderText('To')).toBeTruthy();
+  expect(getByPlaceholderText('From').props.value).toBe('me@you.com');
+});

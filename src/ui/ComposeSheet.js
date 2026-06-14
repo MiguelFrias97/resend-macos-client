@@ -1,4 +1,4 @@
-import React, {useRef, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {View, Text, TextInput, Pressable} from 'react-native';
 import Composer from './Composer';
 import {
@@ -26,13 +26,19 @@ export default function ComposeSheet({
   const [status, setStatus] = useState('idle');
   const [errorText, setErrorText] = useState('');
 
+  // Fill From from a late-arriving saved identity, but never clobber a value the
+  // user has already typed.
+  useEffect(() => {
+    setFrom(prev => prev || defaultFrom);
+  }, [defaultFrom]);
+
   const handleChange = next => {
     contentRef.current = next;
   };
 
-  const handleFromChange = value => {
-    setFrom(value);
-    if (onChangeFrom) onChangeFrom(value);
+  // Persist the identity on blur (not on every keystroke).
+  const persistFrom = () => {
+    if (onChangeFrom) onChangeFrom(from);
   };
 
   const send = async () => {
@@ -98,7 +104,8 @@ export default function ComposeSheet({
       <TextInput
         placeholder="From"
         value={from}
-        onChangeText={handleFromChange}
+        onChangeText={setFrom}
+        onBlur={persistFrom}
         autoCapitalize="none"
         style={fieldStyle}
       />

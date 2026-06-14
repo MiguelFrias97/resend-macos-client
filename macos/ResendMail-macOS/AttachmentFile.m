@@ -11,6 +11,9 @@ RCT_EXTERN_METHOD(downloadToCache:(NSString *)messageId name:(NSString *)name ur
 RCT_EXTERN_METHOD(exists:(NSString *)path
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
+RCT_EXTERN_METHOD(readBase64:(NSString *)path
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 RCT_EXTERN_METHOD(saveAs:(NSString *)srcPath suggestedName:(NSString *)suggestedName
                   dangerous:(BOOL)dangerous
                   resolver:(RCTPromiseResolveBlock)resolve

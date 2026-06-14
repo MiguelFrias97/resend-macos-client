@@ -1,8 +1,9 @@
-import {extractEmail, quoteOriginal} from '../reply/assembleReply';
+import {extractEmail, quoteOriginal, inlineAttachmentParts} from '../reply/assembleReply';
 
 export function parseRecipients(value) {
+  // Split on comma or semicolon (pasted lists often use ';').
   return String(value || '')
-    .split(',')
+    .split(/[,;]/)
     .map(s => extractEmail(s))
     .filter(Boolean);
 }
@@ -13,29 +14,22 @@ export function forwardSubject(subject) {
   return /^fwd:/i.test(s) ? s : `Fwd: ${s}`;
 }
 
-function inlineParts(inlineImages) {
-  return (inlineImages || []).map(img => ({
-    filename: img.filename,
-    content: img.base64,
-    content_type: img.contentType,
-    content_id: img.contentId,
-  }));
-}
-
 export function assembleComposePayload({from, to, subject, html, inlineImages = [], attachments = []}) {
   return {
     from: extractEmail(from),
     to: parseRecipients(to),
     subject: (subject || '').trim() || '(no subject)',
     html: html || '',
-    attachments: [...inlineParts(inlineImages), ...attachments],
+    attachments: [...inlineAttachmentParts(inlineImages), ...attachments],
   };
 }
 
 export function assembleForwardPayload({from, to, original, originalHtml, replyHtml, inlineImages = [], originalAttachments = []}) {
+  // Forwarded files carry their bytes as base64 `content` so the attachment
+  // survives an outbox retry (a presigned URL would expire).
   const forwarded = originalAttachments.map(a => ({
     filename: a.filename,
-    path: a.downloadUrl,
+    content: a.content,
     content_type: a.contentType,
   }));
   return {
@@ -43,6 +37,6 @@ export function assembleForwardPayload({from, to, original, originalHtml, replyH
     to: parseRecipients(to),
     subject: forwardSubject(original.subject),
     html: `${replyHtml || ''}${quoteOriginal(original, originalHtml)}`,
-    attachments: [...inlineParts(inlineImages), ...forwarded],
+    attachments: [...inlineAttachmentParts(inlineImages), ...forwarded],
   };
 }
