@@ -91,6 +91,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     return () => {
       cancelled = true;
       stop();
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, [apiKey, makeStore, makeSource]);
 
