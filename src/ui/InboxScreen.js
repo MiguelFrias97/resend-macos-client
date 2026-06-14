@@ -1,9 +1,11 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {View, Text, Pressable} from 'react-native';
 import MessageList from './MessageList';
-import MessageBody from './MessageBody';
 import AttachmentTray from './AttachmentTray';
 import ReplyComposer from './ReplyComposer';
+import Sidebar from './Sidebar';
+import SearchBar from './SearchBar';
+import ThreadView from './ThreadView';
 import {createLocalStore} from '../data/localStore';
 import {openDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
@@ -21,6 +23,9 @@ import {
 export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const [messages, setMessages] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [thread, setThread] = useState([]);
+  const [filter, setFilter] = useState('inbox');
+  const [query, setQuery] = useState('');
   const [error, setError] = useState(null);
   const [allowRemote, setAllowRemote] = useState(false);
   const [attachments, setAttachments] = useState([]);
@@ -29,6 +34,22 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const [originalHtml, setOriginalHtml] = useState('');
   const servicesRef = useRef(null);
   const outboxBusyRef = useRef(false);
+  const filterRef = useRef('inbox');
+  const queryRef = useRef('');
+  const selectedRef = useRef(null);
+
+  // Load the message list for the current filter/search, reading from refs so
+  // the sync tick and effects all use the latest values.
+  const loadListRef = useRef(async () => {});
+  loadListRef.current = async () => {
+    const services = servicesRef.current;
+    if (!services) return;
+    const q = queryRef.current.trim();
+    const list = q
+      ? await services.store.searchMessages(q)
+      : await services.store.listMessages(filterRef.current);
+    setMessages(list);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -42,11 +63,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       if (cancelled) return;
       servicesRef.current = {store, source, sender};
       setReady(true);
-      const refresh = async () => {
-        const list = await store.listInbox();
-        if (!cancelled) setMessages(list);
-      };
-      await refresh();
+      await loadListRef.current();
       const stopSync = startSyncLoop({
         source,
         store,
@@ -54,9 +71,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
           if (!cancelled) setError(e.message);
         },
         onTick: () => {
-          refresh();
-          // Retry any reply still queued/failed in the outbox, but don't let a
-          // tick re-enter the outbox while a prior drain is still in flight.
+          loadListRef.current();
           if (!outboxBusyRef.current) {
             outboxBusyRef.current = true;
             processOutbox({store, sender})
@@ -75,9 +90,20 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     };
   }, [apiKey, makeStore, makeSource]);
 
-  // Resolve an attachment's presigned URL, then let the native module download
-  // the bytes straight into the per-message cache (no base64 across the bridge).
-  // Inline (cid) images pass quarantine=false since they're served internally.
+  const onFilter = f => {
+    filterRef.current = f;
+    queryRef.current = '';
+    setQuery('');
+    setFilter(f);
+    loadListRef.current();
+  };
+
+  const onQuery = q => {
+    queryRef.current = q;
+    setQuery(q);
+    loadListRef.current();
+  };
+
   const downloadToCache = async (messageId, att, name, quarantine = true) => {
     const services = servicesRef.current;
     if (!services) throw new Error('services not ready');
@@ -100,17 +126,12 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       fetchBody: id => source.getReceivedEmail(id),
       saveBody: (id, b) => store.saveBody(id, b),
       saveAttachments: (id, a) => store.saveAttachments(id, a),
-      // Cache each inline (cid) image so the WKWebView's cidcache:// handler
-      // resolves it. Reads attachments from the store, so it works on both the
-      // fresh-fetch path and revisits to an already-cached body.
       cacheCidImages: async id => {
         try {
           const AttachmentFile = require('../native/AttachmentFile');
           const atts = await store.listAttachments(id);
           for (const att of atts) {
             if (!att.contentId) continue;
-            // Skip only if we have it AND the cached file is still on disk
-            // (the recorded flag can go stale if the cache was evicted).
             if (
               att.downloaded &&
               att.localPath &&
@@ -118,8 +139,6 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
             ) {
               continue;
             }
-            // Lowercase the name: WKWebView lowercases the cidcache:// host, so
-            // the cache filename must match for uppercase Content-IDs to resolve.
             const name = String(att.contentId).toLowerCase();
             const path = await downloadToCache(id, att, name, false);
             await store.markAttachmentDownloaded(att.id, path);
@@ -130,10 +149,10 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         }
       },
       onLoaded: async id => {
+        // The thread renders several bodies; only the clicked message drives
+        // the attachment tray.
+        if (!selectedRef.current || selectedRef.current.id !== id) return;
         const list = await store.listAttachments(id);
-        // Inline (cid) images are rendered in the body — don't also list them
-        // as saveable attachment chips. Unreferenced 'inline' parts (no cid)
-        // are still shown so they're never lost.
         setAttachments(list.filter(a => !isInlineImage(a)));
       },
     };
@@ -141,16 +160,36 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
-  const onSelect = msg => {
+  const onSelect = async msg => {
     setAllowRemote(false);
     setAttachments([]);
     setReplying(false);
     setOriginalHtml('');
     setSelected(msg);
+    selectedRef.current = msg;
+    const {store} = servicesRef.current;
+    if (!msg.seen) {
+      await store.setSeen(msg.id, true);
+    }
+    const t = await store.listThread(msg.threadId);
+    setThread(t);
+    loadListRef.current();
   };
 
-  // Open the inline reply, loading the original body to quote. If the body
-  // hasn't been fetched/cached yet, fetch it now so the quote isn't empty.
+  const onToggleStar = async m => {
+    await servicesRef.current.store.setStarred(m.id, !m.starred);
+    loadListRef.current();
+  };
+
+  const onArchive = async m => {
+    await servicesRef.current.store.setArchived(m.id, true);
+    if (selectedRef.current && selectedRef.current.id === m.id) {
+      setSelected(null);
+      selectedRef.current = null;
+    }
+    loadListRef.current();
+  };
+
   const startReply = async () => {
     const {store, source} = servicesRef.current;
     let msg = await store.getMessage(selected.id);
@@ -160,18 +199,14 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         await store.saveBody(selected.id, {html: fetched.html, text: fetched.text});
         msg = {...msg, html: fetched.html};
       } catch (e) {
-        // Network issue — fall back to whatever we have (possibly an empty quote).
+        // Network issue — fall back to whatever we have.
       }
     }
     setOriginalHtml((msg && msg.html) || '');
     setReplying(true);
   };
 
-  // Send a reply: assemble was done in ReplyComposer; here we enqueue + send via
-  // the outbox and record the sent message for a future thread view.
   const onSendReply = async payload => {
-    // Fail fast on an unsendable payload (e.g. no From/To) rather than queuing
-    // a doomed send that would retry forever.
     const invalid = replyPayloadError(payload);
     if (invalid) return {ok: false, error: new Error(invalid)};
     const {store, sender} = servicesRef.current;
@@ -183,6 +218,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       from: payload.from,
       subject: payload.subject,
       receivedAt: now,
+      html: payload.html,
     };
     const res = await sendReply({
       store,
@@ -192,7 +228,11 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       payload,
       sentMessage,
     });
-    if (res && res.ok) setReplying(false);
+    if (res && res.ok) {
+      setReplying(false);
+      // Reflect the new sent reply in the conversation.
+      setThread(await store.listThread(selected.threadId));
+    }
     return res;
   };
 
@@ -203,8 +243,6 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       const dangerous =
         isDangerousFilename(att.filename) ||
         typeMismatch(att.contentType, att.filename);
-      // Always download a fresh quarantined copy for saving — the cid cache (if
-      // any) is non-quarantined and stored under a different name.
       const path = await downloadToCache(selected.id, att, safe, true);
       await AttachmentFile.saveAs(path, safe, dangerous);
     } catch (e) {
@@ -213,83 +251,75 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   };
 
   return (
-    <View style={{flex: 1}}>
-      <View style={{flex: 1, flexDirection: 'row'}}>
-        <View
-          style={{width: 320, borderRightWidth: 1, borderRightColor: '#e5e5e5'}}
-        >
-          {error ? (
-            <Text style={{padding: 12, color: '#b00'}}>
-              Sync error: {error}
-            </Text>
-          ) : null}
-          <MessageList
-            messages={messages}
-            onSelect={onSelect}
-            selectedId={selected?.id}
-          />
-        </View>
-        <View style={{flex: 1}}>
-          {selected && bodyDeps ? (
-            <View style={{flex: 1}}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderBottomWidth: 1,
-                  borderBottomColor: '#eee',
-                }}
+    <View style={{flex: 1, flexDirection: 'row'}}>
+      <Sidebar selected={filter} onSelect={onFilter} />
+      <View style={{width: 300, borderRightWidth: 1, borderRightColor: '#e5e5e5'}}>
+        <SearchBar value={query} onChange={onQuery} />
+        {error ? (
+          <Text style={{padding: 12, color: '#b00'}}>Sync error: {error}</Text>
+        ) : null}
+        <MessageList
+          messages={messages}
+          onSelect={onSelect}
+          selectedId={selected?.id}
+          onToggleStar={onToggleStar}
+          onArchive={onArchive}
+        />
+      </View>
+      <View style={{flex: 1}}>
+        {selected && bodyDeps ? (
+          <View style={{flex: 1}}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: '#eee',
+              }}
+            >
+              <Text
+                style={{fontSize: 16, fontWeight: '600', flex: 1}}
+                numberOfLines={1}
               >
-                <Text
-                  style={{fontSize: 16, fontWeight: '600', flex: 1}}
-                  numberOfLines={1}
+                {selected.subject}
+              </Text>
+              {!allowRemote ? (
+                <Pressable
+                  onPress={() => setAllowRemote(true)}
+                  style={{marginLeft: 12}}
                 >
-                  {selected.subject}
-                </Text>
-                {!allowRemote ? (
-                  <Pressable
-                    onPress={() => setAllowRemote(true)}
-                    style={{marginLeft: 12}}
-                  >
-                    <Text style={{color: '#3a6ea5'}}>Load remote images</Text>
-                  </Pressable>
-                ) : null}
-                {!replying ? (
-                  <Pressable onPress={startReply} style={{marginLeft: 12}}>
-                    <Text style={{color: '#3a6ea5', fontWeight: '600'}}>
-                      Reply
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-              <MessageBody
-                messageId={selected.id}
-                allowRemote={allowRemote}
-                deps={bodyDeps}
-              />
-              <AttachmentTray
-                attachments={attachments}
-                onSave={onSaveAttachment}
-              />
-              {replying ? (
-                <ReplyComposer
-                  original={selected}
-                  originalHtml={originalHtml}
-                  onSend={onSendReply}
-                />
+                  <Text style={{color: '#3a6ea5'}}>Load remote images</Text>
+                </Pressable>
+              ) : null}
+              {!replying ? (
+                <Pressable onPress={startReply} style={{marginLeft: 12}}>
+                  <Text style={{color: '#3a6ea5', fontWeight: '600'}}>Reply</Text>
+                </Pressable>
               ) : null}
             </View>
-          ) : (
-            <View
-              style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}
-            >
-              <Text style={{color: '#999'}}>Select a message</Text>
-            </View>
-          )}
-        </View>
+            <ThreadView
+              messages={thread}
+              bodyDeps={bodyDeps}
+              allowRemote={allowRemote}
+            />
+            <AttachmentTray attachments={attachments} onSave={onSaveAttachment} />
+            {replying ? (
+              <ReplyComposer
+                original={selected}
+                originalHtml={originalHtml}
+                onSend={onSendReply}
+              />
+            ) : null}
+          </View>
+        ) : (
+          <View
+            style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}
+          >
+            <Text style={{color: '#999'}}>Select a message</Text>
+          </View>
+        )}
       </View>
     </View>
   );

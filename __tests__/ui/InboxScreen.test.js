@@ -4,9 +4,10 @@ import InboxScreen from '../../src/ui/InboxScreen';
 
 test('renders rows from the store', async () => {
   const store = {
-    listInbox: async () => [
-      {id: 'm1', from: 'Marcus Lee <marcus@acme.com>', subject: 'Re: contract', receivedAt: '2026-06-12T14:14:00Z', seen: false},
+    listMessages: async () => [
+      {id: 'm1', from: 'Marcus Lee <marcus@acme.com>', subject: 'Re: contract', receivedAt: '2026-06-12T14:14:00Z', seen: false, starred: false},
     ],
+    searchMessages: async () => [],
     upsertMessage: async () => {},
   };
   const makeStore = async () => store;
@@ -20,7 +21,8 @@ test('renders rows from the store', async () => {
 
 test('shows a sync error banner when the source throws', async () => {
   const store = {
-    listInbox: async () => [],
+    listMessages: async () => [],
+    searchMessages: async () => [],
     upsertMessage: async () => {},
   };
   const makeStore = async () => store;
