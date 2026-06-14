@@ -1,97 +1,109 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Resend Desktop Mail
 
-# Getting Started
+A native **macOS** desktop email client for reading and replying to mail received via
+[Resend Inbound](https://resend.com/docs/dashboard/receiving/introduction). Built with
+`react-native-macos` using true AppKit/WebKit components, in an Apple/Jobs visual idiom.
+No backend — the app talks directly to the Resend API and caches everything locally.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+> Receive → triage (read/unread, star, archive, search, folders) → read full conversations →
+> reply, compose, and forward — with rich formatting, inline images, attachments, threading,
+> and a reliable retrying outbox.
 
-## Step 1: Start Metro
+## What it does
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+- **Inbox & sync** — polls `GET /emails/receiving` (~25s + manual refresh), caches messages,
+  attachments, and bodies in SQLite (works offline; survives Resend's 30-day retention).
+- **Reading** — full HTML rendered in a native `WKWebView` with JavaScript disabled and remote
+  content blocked behind a "Load images" toggle (CSP-enforced), inline `cid:` images resolved
+  from cache, attachments saved with macOS quarantine + filename hygiene + dangerous-type warnings.
+- **Rich editor** — a native `NSTextView` editor (bold/italic/underline, lists, links, drag-drop
+  inline images) producing email-safe HTML.
+- **Reply / compose / forward** — threaded replies (`In-Reply-To`/`References`), a focused compose
+  sheet, forward with the original's files re-attached, all sent through a local outbox that retries
+  failures (idempotent, so a retry never double-sends).
+- **Triage** — sidebar (Inbox/Unread/Starred/Archive), local search (sender/subject/cached body),
+  and a grouped conversation view including your sent replies.
+- **Polish** — auto light/dark following macOS, the system accent color, native new-mail
+  notifications, and friendly empty/error states.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## Architecture
 
-```sh
-# Using npm
-npm start
+Single process, no server. Plain JavaScript app core with isolated modules; native modules only
+where macOS does something JS can't.
 
-# OR using Yarn
-yarn start
+```
+UI (react-native-macos / AppKit) ── Sidebar · MessageList · ThreadView · Composer · ComposeSheet
+  │
+App core (plain JS) ──────────────── sync loop · threading · outbox · reply/compose assembly · theme
+  │
+  ├── MailSource   (Resend polling/retrieve over fetch)
+  ├── LocalStore   (op-sqlite: messages, attachments, outbox, settings)
+  └── Sender       (Resend POST /emails, idempotency key)
+  │
+Native modules (Swift) ──────────── Keychain · MessageBodyView (WKWebView) · RichEditorView
+  (NSTextView) · AttachmentFile (quarantine/save/readBase64) · SystemAccent · Notifications
 ```
 
-## Step 2: Build and run your app
+The full design spec and per-milestone plans live in `docs/superpowers/specs/` and
+`docs/superpowers/plans/`.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## Prerequisites
 
-### Android
+- **macOS** with **Xcode** (built/verified on Xcode 26.5).
+- **Node ≥ 20.12** — the macOS build uses `util.styleText`, which is missing on 20.11. An `.nvmrc`
+  pins **22**: `nvm use`.
+- **CocoaPods** (`brew install cocoapods`).
+- A **Resend account** with:
+  - a domain set up for **Inbound** (catch-all receiving) — see Resend → Receiving,
+  - the **same domain verified for sending** (replies send `From` the address that received the mail),
+  - an **API key**.
 
-```sh
-# Using npm
-npm run android
+## Setup
 
-# OR using Yarn
-yarn android
+```bash
+nvm use                        # Node 22
+npm install
+( cd macos && pod install )    # PATH must include /opt/homebrew/bin
 ```
 
-### iOS
+> The macOS Podfile contains a `post_install` hook patching `fmt` for Xcode 26 (Apple clang rejects
+> fmt's `consteval` format-string constructor); it re-applies on every `pod install`.
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+## Run
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```bash
+npm run macos                  # builds + launches the macOS app
 ```
 
-Then, and every time you update your native dependencies, run:
+On first launch, paste your Resend API key (stored in the macOS Keychain). The app verifies it,
+then starts syncing your received mail.
 
-```sh
-bundle exec pod install
+## Develop
+
+```bash
+npm test                       # Jest unit tests
+npx eslint .                   # lint
+# native build only:
+xcodebuild -workspace macos/ResendMail.xcworkspace -scheme ResendMail-macOS -configuration Debug build
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## API reconciliation
 
-```sh
-# Using npm
-npm run ios
+The Resend received-email / attachment responses use **snake_case** (`message_id`, `created_at`,
+`content_type`, `content_disposition`, `download_url`); the payload validators
+(`src/data/validators.js`) map these to camelCase and have been reconciled against the documented
+shapes — see `docs/API-VERIFICATION.md`.
 
-# OR using Yarn
-yarn ios
-```
+## Known limitations
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+- **Threading** uses a subject + participants heuristic. The list endpoint exposes only `message_id`
+  (not `in_reply_to`/`references`), so RFC-header threading would require parsing the retrieve
+  endpoint's `headers` and a re-threading pass.
+- **Native runtime**: the Swift modules and the send/render paths are compile- and unit-verified but
+  not yet exercised against a live account end-to-end — run `docs/SMOKE-CHECKLIST.md` before relying on it.
+- No Drafts/Sent view, recipient autocomplete, Settings screen, or arbitrary-file attach on compose
+  (all deferred follow-ups).
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## License
 
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+Private project.
