@@ -30,17 +30,17 @@ function makeFakeDb() {
         return {rows: pending};
       }
       if (/^INSERT INTO messages/i.test(sql) && /direction/i.test(sql) && /'sent'/i.test(sql)) {
-        const [id, thread_id, sender, subject, received_at] = params;
+        const [id, thread_id, sender, subject, received_at, html] = params;
         const existing = rows.find(r => r.id === id);
-        if (existing) existing.direction = 'sent';
-        else rows.push({id, thread_id, sender, subject, received_at, seen: 0, html: null, text: null, body_fetched: 0, direction: 'sent'});
+        if (existing) Object.assign(existing, {direction: 'sent', html, body_fetched: 1});
+        else rows.push({id, thread_id, sender, subject, received_at, seen: 0, starred: 0, archived: 0, html, text: null, body_fetched: 1, direction: 'sent'});
         return {rows: [], rowsAffected: 1};
       }
       if (/^INSERT INTO messages/i.test(sql)) {
         const [id, thread_id, sender, subject, received_at] = params;
         const existing = rows.find(r => r.id === id);
         if (existing) Object.assign(existing, {thread_id, sender, subject, received_at});
-        else rows.push({id, thread_id, sender, subject, received_at, seen: 0, html: null, text: null, body_fetched: 0, direction: 'received'});
+        else rows.push({id, thread_id, sender, subject, received_at, seen: 0, starred: 0, archived: 0, html: null, text: null, body_fetched: 0, direction: 'received'});
         return {rows: [], rowsAffected: 1};
       }
       if (/^UPDATE messages SET html=/i.test(sql)) {
@@ -48,6 +48,46 @@ function makeFakeDb() {
         const existing = rows.find(r => r.id === id);
         if (existing) Object.assign(existing, {html, text, body_fetched: 1});
         return {rows: [], rowsAffected: existing ? 1 : 0};
+      }
+      if (/^UPDATE messages SET seen=/i.test(sql)) {
+        const [value, id] = params;
+        const existing = rows.find(r => r.id === id);
+        if (existing) existing.seen = value;
+        return {rows: [], rowsAffected: existing ? 1 : 0};
+      }
+      if (/^UPDATE messages SET starred=/i.test(sql)) {
+        const [value, id] = params;
+        const existing = rows.find(r => r.id === id);
+        if (existing) existing.starred = value;
+        return {rows: [], rowsAffected: existing ? 1 : 0};
+      }
+      if (/^UPDATE messages SET archived=/i.test(sql)) {
+        const [value, id] = params;
+        const existing = rows.find(r => r.id === id);
+        if (existing) existing.archived = value;
+        return {rows: [], rowsAffected: existing ? 1 : 0};
+      }
+      if (/FROM messages WHERE thread_id=/i.test(sql)) {
+        const [thread_id] = params;
+        return {
+          rows: rows
+            .filter(r => r.thread_id === thread_id)
+            .sort((a, b) => (a.received_at < b.received_at ? -1 : 1)),
+        };
+      }
+      if (/FROM messages WHERE direction='received' AND \(sender LIKE/i.test(sql)) {
+        const like = String(params[0]).replace(/%/g, '').toLowerCase();
+        return {
+          rows: rows
+            .filter(r => r.direction === 'received')
+            .filter(
+              r =>
+                String(r.sender ?? '').toLowerCase().includes(like) ||
+                String(r.subject ?? '').toLowerCase().includes(like) ||
+                String(r.text ?? '').toLowerCase().includes(like),
+            )
+            .sort((a, b) => (a.received_at < b.received_at ? 1 : -1)),
+        };
       }
       if (/^INSERT INTO attachments/i.test(sql)) {
         const [id, message_id, filename, content_type, size, content_id, disposition, download_url] = params;
@@ -71,6 +111,19 @@ function makeFakeDb() {
         const [id] = params;
         const r = rows.find(x => x.id === id);
         return {rows: r ? [r] : []};
+      }
+      if (/FROM messages WHERE direction='received'/i.test(sql)) {
+        let filtered;
+        if (/archived=0 AND seen=0/i.test(sql)) {
+          filtered = rows.filter(r => r.direction === 'received' && !r.archived && !r.seen);
+        } else if (/starred=1/i.test(sql)) {
+          filtered = rows.filter(r => r.direction === 'received' && r.starred);
+        } else if (/archived=1/i.test(sql)) {
+          filtered = rows.filter(r => r.direction === 'received' && r.archived);
+        } else {
+          filtered = rows.filter(r => r.direction === 'received' && !r.archived);
+        }
+        return {rows: filtered.sort((a, b) => (a.received_at < b.received_at ? 1 : -1))};
       }
       if (/FROM messages/i.test(sql)) {
         return {rows: rows.filter(r => r.direction === 'received').sort((a, b) => (a.received_at < b.received_at ? 1 : -1))};
@@ -144,4 +197,41 @@ test('listInbox excludes sent messages', async () => {
   await store.insertSentMessage({id: 's1', threadId: 't1', from: 'me', subject: 'Re: Hi', receivedAt: '2026-06-12T11:00:00Z'});
   const inbox = await store.listInbox();
   expect(inbox.map(m => m.id)).toEqual(['r1']);
+});
+
+test('flags: setSeen/setStarred/setArchived and filtered listing', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.upsertMessage({id: 'a', threadId: 't1', from: 'A', subject: 'one', receivedAt: '2026-06-12T10:00:00Z'});
+  await store.upsertMessage({id: 'b', threadId: 't2', from: 'B', subject: 'two', receivedAt: '2026-06-12T11:00:00Z'});
+  await store.setSeen('a', true);
+  await store.setStarred('b', true);
+  await store.setArchived('a', true);
+
+  expect((await store.listMessages('inbox')).map(m => m.id)).toEqual(['b']);
+  expect((await store.listMessages('unread')).map(m => m.id)).toEqual(['b']);
+  expect((await store.listMessages('starred')).map(m => m.id)).toEqual(['b']);
+  expect((await store.listMessages('archive')).map(m => m.id)).toEqual(['a']);
+  const b = (await store.listMessages('inbox'))[0];
+  expect(b.starred).toBe(true);
+  expect(b.seen).toBe(false);
+});
+
+test('searchMessages matches sender, subject, and cached body', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.upsertMessage({id: 'a', threadId: 't1', from: 'Marcus', subject: 'Deal', receivedAt: '2026-06-12T10:00:00Z'});
+  await store.saveBody('a', {html: '<p>contract terms</p>', text: 'contract terms'});
+  await store.upsertMessage({id: 'b', threadId: 't2', from: 'Ana', subject: 'Lunch', receivedAt: '2026-06-12T11:00:00Z'});
+  expect((await store.searchMessages('marc')).map(m => m.id)).toEqual(['a']);
+  expect((await store.searchMessages('lunch')).map(m => m.id)).toEqual(['b']);
+  expect((await store.searchMessages('contract')).map(m => m.id)).toEqual(['a']);
+});
+
+test('listThread returns received + sent messages oldest-first', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.upsertMessage({id: 'r', threadId: 't1', from: 'A', subject: 'Hi', receivedAt: '2026-06-12T10:00:00Z'});
+  await store.insertSentMessage({id: 's', threadId: 't1', from: 'me', subject: 'Re: Hi', receivedAt: '2026-06-12T11:00:00Z', html: '<p>reply</p>'});
+  const thread = await store.listThread('t1');
+  expect(thread.map(m => m.id)).toEqual(['r', 's']);
+  expect(thread[1].direction).toBe('sent');
+  expect(thread[1].html).toBe('<p>reply</p>');
 });
