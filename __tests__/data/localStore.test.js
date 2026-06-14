@@ -3,14 +3,44 @@ import {createLocalStore} from '../../src/data/localStore';
 function makeFakeDb() {
   const rows = [];
   const attachments = [];
+  const outbox = [];
   return {
     async execute(sql, params = []) {
       if (/^CREATE TABLE/i.test(sql)) return {rows: []};
+      if (/^INSERT INTO outbox/i.test(sql)) {
+        const [id, thread_id, payload, sent_message, created_at] = params;
+        outbox.push({id, thread_id, payload, sent_message, status: 'pending', resend_send_id: null, attempt_count: 0, last_error: null, created_at});
+        return {rows: [], rowsAffected: 1};
+      }
+      if (/^UPDATE outbox SET status=/i.test(sql)) {
+        const [status, resend_send_id, last_error, attempt_count, id] = params;
+        const existing = outbox.find(o => o.id === id);
+        if (existing) {
+          existing.status = status;
+          existing.resend_send_id = resend_send_id;
+          existing.last_error = last_error;
+          if (attempt_count !== null && attempt_count !== undefined) existing.attempt_count = attempt_count;
+        }
+        return {rows: [], rowsAffected: existing ? 1 : 0};
+      }
+      if (/FROM outbox WHERE status IN/i.test(sql)) {
+        const pending = outbox
+          .filter(o => ['pending', 'failed', 'sending'].includes(o.status))
+          .sort((a, b) => (String(a.created_at) < String(b.created_at) ? -1 : 1));
+        return {rows: pending};
+      }
+      if (/^INSERT INTO messages/i.test(sql) && /direction/i.test(sql) && /'sent'/i.test(sql)) {
+        const [id, thread_id, sender, subject, received_at] = params;
+        const existing = rows.find(r => r.id === id);
+        if (existing) existing.direction = 'sent';
+        else rows.push({id, thread_id, sender, subject, received_at, seen: 0, html: null, text: null, body_fetched: 0, direction: 'sent'});
+        return {rows: [], rowsAffected: 1};
+      }
       if (/^INSERT INTO messages/i.test(sql)) {
         const [id, thread_id, sender, subject, received_at] = params;
         const existing = rows.find(r => r.id === id);
         if (existing) Object.assign(existing, {thread_id, sender, subject, received_at});
-        else rows.push({id, thread_id, sender, subject, received_at, seen: 0, html: null, text: null, body_fetched: 0});
+        else rows.push({id, thread_id, sender, subject, received_at, seen: 0, html: null, text: null, body_fetched: 0, direction: 'received'});
         return {rows: [], rowsAffected: 1};
       }
       if (/^UPDATE messages SET html=/i.test(sql)) {
@@ -43,7 +73,7 @@ function makeFakeDb() {
         return {rows: r ? [r] : []};
       }
       if (/FROM messages/i.test(sql)) {
-        return {rows: [...rows].sort((a, b) => (a.received_at < b.received_at ? 1 : -1))};
+        return {rows: rows.filter(r => r.direction === 'received').sort((a, b) => (a.received_at < b.received_at ? 1 : -1))};
       }
       return {rows: []};
     },
@@ -83,4 +113,35 @@ test('markAttachmentDownloaded records the local path and downloaded flag', asyn
   const atts = await store.listAttachments('m1');
   expect(atts[0].downloaded).toBe(true);
   expect(atts[0].localPath).toBe('/cache/m1/a.pdf');
+});
+
+test('outbox enqueue/list/status round-trip', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.enqueueOutbox({id: 'o1', threadId: 't1', payload: {to: 'b@y', subject: 'Re: hi'}});
+  let pending = await store.listPendingOutbox();
+  expect(pending).toHaveLength(1);
+  expect(pending[0].payload.subject).toBe('Re: hi');
+  await store.setOutboxStatus('o1', 'sent', {resendSendId: 'eml_1'});
+  pending = await store.listPendingOutbox();
+  expect(pending).toHaveLength(0);
+});
+
+test('outbox persists the sentMessage so a retry can still record it', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.enqueueOutbox({
+    id: 'o1',
+    threadId: 't1',
+    payload: {to: 'b@y', subject: 'Re: hi'},
+    sentMessage: {id: 's1', threadId: 't1', from: 'me', subject: 'Re: hi', receivedAt: 'now'},
+  });
+  const [item] = await store.listPendingOutbox();
+  expect(item.sentMessage).toEqual({id: 's1', threadId: 't1', from: 'me', subject: 'Re: hi', receivedAt: 'now'});
+});
+
+test('listInbox excludes sent messages', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.upsertMessage({id: 'r1', threadId: 't1', from: 'A', subject: 'Hi', receivedAt: '2026-06-12T10:00:00Z'});
+  await store.insertSentMessage({id: 's1', threadId: 't1', from: 'me', subject: 'Re: Hi', receivedAt: '2026-06-12T11:00:00Z'});
+  const inbox = await store.listInbox();
+  expect(inbox.map(m => m.id)).toEqual(['r1']);
 });

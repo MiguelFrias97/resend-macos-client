@@ -3,11 +3,14 @@ import {View, Text, Pressable} from 'react-native';
 import MessageList from './MessageList';
 import MessageBody from './MessageBody';
 import AttachmentTray from './AttachmentTray';
-import ComposeScratchScreen from './ComposeScratchScreen';
+import ReplyComposer from './ReplyComposer';
 import {createLocalStore} from '../data/localStore';
 import {openDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
+import {createSender} from '../net/sender';
 import {startSyncLoop} from '../core/sync';
+import {sendReply, processOutbox} from '../core/outbox';
+import {replyPayloadError} from '../reply/assembleReply';
 import {
   sanitizeFilename,
   isDangerousFilename,
@@ -22,8 +25,10 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const [allowRemote, setAllowRemote] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [ready, setReady] = useState(false);
-  const [composing, setComposing] = useState(false);
+  const [replying, setReplying] = useState(false);
+  const [originalHtml, setOriginalHtml] = useState('');
   const servicesRef = useRef(null);
+  const outboxBusyRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,8 +38,9 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         ? await makeStore()
         : await createLocalStore(openDb());
       const source = makeSource ? makeSource() : createMailSource({apiKey});
+      const sender = createSender({apiKey});
       if (cancelled) return;
-      servicesRef.current = {store, source};
+      servicesRef.current = {store, source, sender};
       setReady(true);
       const refresh = async () => {
         const list = await store.listInbox();
@@ -47,7 +53,19 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         onError: e => {
           if (!cancelled) setError(e.message);
         },
-        onTick: () => refresh(),
+        onTick: () => {
+          refresh();
+          // Retry any reply still queued/failed in the outbox, but don't let a
+          // tick re-enter the outbox while a prior drain is still in flight.
+          if (!outboxBusyRef.current) {
+            outboxBusyRef.current = true;
+            processOutbox({store, sender})
+              .catch(() => {})
+              .finally(() => {
+                outboxBusyRef.current = false;
+              });
+          }
+        },
       });
       stop = () => stopSync();
     })();
@@ -126,7 +144,56 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const onSelect = msg => {
     setAllowRemote(false);
     setAttachments([]);
+    setReplying(false);
+    setOriginalHtml('');
     setSelected(msg);
+  };
+
+  // Open the inline reply, loading the original body to quote. If the body
+  // hasn't been fetched/cached yet, fetch it now so the quote isn't empty.
+  const startReply = async () => {
+    const {store, source} = servicesRef.current;
+    let msg = await store.getMessage(selected.id);
+    if (!msg || !msg.html) {
+      try {
+        const fetched = await source.getReceivedEmail(selected.id);
+        await store.saveBody(selected.id, {html: fetched.html, text: fetched.text});
+        msg = {...msg, html: fetched.html};
+      } catch (e) {
+        // Network issue — fall back to whatever we have (possibly an empty quote).
+      }
+    }
+    setOriginalHtml((msg && msg.html) || '');
+    setReplying(true);
+  };
+
+  // Send a reply: assemble was done in ReplyComposer; here we enqueue + send via
+  // the outbox and record the sent message for a future thread view.
+  const onSendReply = async payload => {
+    // Fail fast on an unsendable payload (e.g. no From/To) rather than queuing
+    // a doomed send that would retry forever.
+    const invalid = replyPayloadError(payload);
+    if (invalid) return {ok: false, error: new Error(invalid)};
+    const {store, sender} = servicesRef.current;
+    const id = `out_${Math.random().toString(36).slice(2)}`;
+    const now = new Date().toISOString();
+    const sentMessage = {
+      id: `sent_${id}`,
+      threadId: selected.threadId,
+      from: payload.from,
+      subject: payload.subject,
+      receivedAt: now,
+    };
+    const res = await sendReply({
+      store,
+      sender,
+      id,
+      threadId: selected.threadId,
+      payload,
+      sentMessage,
+    });
+    if (res && res.ok) setReplying(false);
+    return res;
   };
 
   const onSaveAttachment = async att => {
@@ -151,20 +218,6 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         <View
           style={{width: 320, borderRightWidth: 1, borderRightColor: '#e5e5e5'}}
         >
-          {/* TODO(M6): the scratch composer is a demo surface — replace with the
-              real reply/compose screen wired to the send pipeline. */}
-          <Pressable
-            onPress={() => setComposing(true)}
-            style={{
-              padding: 10,
-              borderBottomWidth: 1,
-              borderBottomColor: '#eee',
-            }}
-          >
-            <Text style={{color: '#3a6ea5', fontWeight: '600'}}>
-              ＋ Compose
-            </Text>
-          </Pressable>
           {error ? (
             <Text style={{padding: 12, color: '#b00'}}>
               Sync error: {error}
@@ -191,14 +244,24 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
                 }}
               >
                 <Text
-                  style={{fontSize: 16, fontWeight: '600'}}
+                  style={{fontSize: 16, fontWeight: '600', flex: 1}}
                   numberOfLines={1}
                 >
                   {selected.subject}
                 </Text>
                 {!allowRemote ? (
-                  <Pressable onPress={() => setAllowRemote(true)}>
+                  <Pressable
+                    onPress={() => setAllowRemote(true)}
+                    style={{marginLeft: 12}}
+                  >
                     <Text style={{color: '#3a6ea5'}}>Load remote images</Text>
+                  </Pressable>
+                ) : null}
+                {!replying ? (
+                  <Pressable onPress={startReply} style={{marginLeft: 12}}>
+                    <Text style={{color: '#3a6ea5', fontWeight: '600'}}>
+                      Reply
+                    </Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -211,6 +274,13 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
                 attachments={attachments}
                 onSave={onSaveAttachment}
               />
+              {replying ? (
+                <ReplyComposer
+                  original={selected}
+                  originalHtml={originalHtml}
+                  onSend={onSendReply}
+                />
+              ) : null}
             </View>
           ) : (
             <View
@@ -221,13 +291,6 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
           )}
         </View>
       </View>
-      {composing ? (
-        <View
-          style={{position: 'absolute', top: 0, left: 0, right: 0, bottom: 0}}
-        >
-          <ComposeScratchScreen onClose={() => setComposing(false)} />
-        </View>
-      ) : null}
     </View>
   );
 }
