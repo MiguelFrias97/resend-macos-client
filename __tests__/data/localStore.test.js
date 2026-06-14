@@ -69,4 +69,18 @@ test('saveBody persists html/text and marks body fetched; attachments round-trip
   expect(msg.bodyFetched).toBe(true);
   const atts = await store.listAttachments('m1');
   expect(atts[0].filename).toBe('a.pdf');
+  expect(atts[0].contentId).toBe('cid1');
+  expect(atts[0].downloadUrl).toBe('https://d/x');
+  expect(atts[0].downloaded).toBe(false);
+  expect(atts[0].localPath).toBe(null);
+});
+
+test('markAttachmentDownloaded records the local path and downloaded flag', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.upsertMessage({id: 'm1', threadId: 't1', from: 'A', subject: 'Hi', receivedAt: '2026-06-12T10:00:00Z'});
+  await store.saveAttachments('m1', [{id: 'a1', filename: 'a.pdf', contentType: 'application/pdf', size: 9}]);
+  await store.markAttachmentDownloaded('a1', '/cache/m1/a.pdf');
+  const atts = await store.listAttachments('m1');
+  expect(atts[0].downloaded).toBe(true);
+  expect(atts[0].localPath).toBe('/cache/m1/a.pdf');
 });

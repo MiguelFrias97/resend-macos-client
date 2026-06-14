@@ -56,9 +56,11 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
     addSubview(webView)
   }
 
-  // MARK: - Props (exported via the .m bridge)
+  // Tracks scheme tasks that are still live, so we never call back into a task
+  // WebKit has already stopped (which would raise an exception and crash).
+  private var activeTasks = Set<ObjectIdentifier>()
 
-  @objc var onHeight: RCTBubblingEventBlock?
+  // MARK: - Props (exported via the .m bridge)
 
   @objc func setHtml(_ value: NSString) {
     html = value as String
@@ -87,8 +89,9 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
     let url = navigationAction.request.url
     let scheme = url?.scheme?.lowercased() ?? ""
 
-    // Always allow the local document load and our inline-image scheme.
-    if scheme.isEmpty || scheme == "about" || scheme == "file" || scheme == "cidcache" {
+    // Allow only the local document load and our inline-image scheme. file://
+    // is intentionally NOT allowed for untrusted email HTML.
+    if scheme.isEmpty || scheme == "about" || scheme == "cidcache" {
       decisionHandler(.allow)
       return
     }
@@ -97,27 +100,21 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
     decisionHandler(allowRemote ? .allow : .cancel)
   }
 
-  func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-    // Host-initiated evaluateJavaScript works even with content JS disabled.
-    webView.evaluateJavaScript("document.body ? document.body.scrollHeight : 0") { [weak self] result, _ in
-      guard let self = self, let block = self.onHeight else { return }
-      let height: CGFloat
-      if let n = result as? CGFloat {
-        height = n
-      } else if let n = result as? NSNumber {
-        height = CGFloat(truncating: n)
-      } else {
-        height = self.webView.frame.height
-      }
-      block(["height": height])
-    }
-  }
-
   // MARK: - WKURLSchemeHandler (cidcache://)
 
   func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
+    let key = ObjectIdentifier(urlSchemeTask as AnyObject)
+    activeTasks.insert(key)
+
+    // Only call back into the task while WebKit still considers it active.
+    func fail(_ message: String) {
+      if activeTasks.remove(key) != nil {
+        urlSchemeTask.didFailWithError(schemeError(message))
+      }
+    }
+
     guard let url = urlSchemeTask.request.url else {
-      urlSchemeTask.didFailWithError(schemeError("missing url"))
+      fail("missing url")
       return
     }
 
@@ -127,15 +124,17 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
       contentId = url.path.replacingOccurrences(of: "/", with: "")
     }
     contentId = contentId.removingPercentEncoding ?? contentId
+    // Strip any path components so a crafted cid can't traverse out of cacheDir.
+    contentId = (contentId as NSString).lastPathComponent
 
     guard !contentId.isEmpty, !cacheDir.isEmpty else {
-      urlSchemeTask.didFailWithError(schemeError("empty content id or cache dir"))
+      fail("empty content id or cache dir")
       return
     }
 
     let filePath = (cacheDir as NSString).appendingPathComponent(contentId)
     guard let data = FileManager.default.contents(atPath: filePath) else {
-      urlSchemeTask.didFailWithError(schemeError("not found: \(filePath)"))
+      fail("not found: \(filePath)")
       return
     }
 
@@ -144,13 +143,16 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
                               mimeType: mime,
                               expectedContentLength: data.count,
                               textEncodingName: nil)
+    guard activeTasks.contains(key) else { return }
     urlSchemeTask.didReceive(response)
     urlSchemeTask.didReceive(data)
     urlSchemeTask.didFinish()
+    activeTasks.remove(key)
   }
 
   func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
-    // No-op: loads are synchronous from the local cache.
+    // Mark the task dead so an in-flight start() won't call back into it.
+    activeTasks.remove(ObjectIdentifier(urlSchemeTask as AnyObject))
   }
 
   // MARK: - Helpers

@@ -4,7 +4,7 @@
 RCT_EXTERN_METHOD(cacheDir:(NSString *)messageId
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
-RCT_EXTERN_METHOD(writeToCache:(NSString *)messageId name:(NSString *)name base64:(NSString *)base64
+RCT_EXTERN_METHOD(downloadToCache:(NSString *)messageId name:(NSString *)name url:(NSString *)url
                   quarantine:(BOOL)quarantine
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)

@@ -31,34 +31,51 @@ class AttachmentFile: NSObject {
     }
   }
 
-  @objc(writeToCache:name:base64:quarantine:resolver:rejecter:)
-  func writeToCache(_ messageId: String, name: String, base64: String, quarantine: Bool,
-                    resolver resolve: RCTPromiseResolveBlock,
-                    rejecter reject: RCTPromiseRejectBlock) {
-    guard let data = Data(base64Encoded: base64) else {
-      reject("write_decode", "invalid base64", nil)
+  // Quarantine user-facing files so Gatekeeper/XProtect screen them on open.
+  private func setQuarantine(_ path: String) {
+    let hexTime = String(format: "%08x", UInt(Date().timeIntervalSince1970))
+    let value = "0181;\(hexTime);ResendMail;\(UUID().uuidString)"
+    let ok = value.withCString { cstr in
+      setxattr(path, "com.apple.quarantine", cstr, strlen(cstr), 0, 0)
+    }
+    if ok != 0 {
+      NSLog("AttachmentFile: failed to set quarantine xattr on \(path)")
+    }
+  }
+
+  // Download bytes from a presigned URL straight into the per-message cache.
+  // Done natively (no base64 across the bridge) so large attachments don't
+  // block the JS thread. Inline (cid) images pass quarantine=false.
+  @objc(downloadToCache:name:url:quarantine:resolver:rejecter:)
+  func downloadToCache(_ messageId: String, name: String, url: String, quarantine: Bool,
+                       resolver resolve: @escaping RCTPromiseResolveBlock,
+                       rejecter reject: @escaping RCTPromiseRejectBlock) {
+    guard let remote = URL(string: url) else {
+      reject("bad_url", "invalid download url", nil)
       return
     }
-    do {
-      let safeName = (name as NSString).lastPathComponent
-      let fileURL = try dir(for: messageId).appendingPathComponent(safeName)
-      try data.write(to: fileURL)
-      // Quarantine user-facing attachments so Gatekeeper/XProtect screen them on
-      // open. Inline (cid) images are served internally and don't need it.
-      if quarantine {
-        let hexTime = String(format: "%08x", UInt(Date().timeIntervalSince1970))
-        let value = "0181;\(hexTime);ResendMail;\(UUID().uuidString)"
-        let ok = value.withCString { cstr in
-          setxattr(fileURL.path, "com.apple.quarantine", cstr, strlen(cstr), 0, 0)
-        }
-        if ok != 0 {
-          NSLog("AttachmentFile: failed to set quarantine xattr on \(fileURL.path)")
-        }
+    let task = URLSession.shared.dataTask(with: remote) { data, _, error in
+      if let error = error {
+        reject("download", error.localizedDescription, error)
+        return
       }
-      resolve(fileURL.path)
-    } catch {
-      reject("write_cache", error.localizedDescription, error)
+      guard let data = data else {
+        reject("download", "no data", nil)
+        return
+      }
+      do {
+        let safeName = (name as NSString).lastPathComponent
+        let fileURL = try self.dir(for: messageId).appendingPathComponent(safeName)
+        try data.write(to: fileURL)
+        if quarantine {
+          self.setQuarantine(fileURL.path)
+        }
+        resolve(fileURL.path)
+      } catch {
+        reject("write_cache", error.localizedDescription, error)
+      }
     }
+    task.resume()
   }
 
   @objc(saveAs:suggestedName:resolver:rejecter:)

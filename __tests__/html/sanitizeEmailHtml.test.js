@@ -36,6 +36,18 @@ test('drops embedded <style> blocks entirely', () => {
   expect(out).not.toContain('tracker/sheet.gif');
 });
 
+test('keeps http/https/mailto links but drops javascript: hrefs', () => {
+  const out = sanitizeEmailHtml(
+    '<a href="http://ex.com">a</a><a href="https://ex.com">b</a>' +
+      '<a href="mailto:x@y.com">c</a><a href="javascript:evil()">d</a>',
+    {allowRemote: false},
+  );
+  expect(out).toContain('href="http://ex.com"');
+  expect(out).toContain('href="https://ex.com"');
+  expect(out).toContain('href="mailto:x@y.com"');
+  expect(out).not.toMatch(/javascript:/i);
+});
+
 test('emits a Content-Security-Policy that gates remote loads on allowRemote', () => {
   const blocked = sanitizeEmailHtml('<p>x</p>', {allowRemote: false});
   expect(blocked).toContain('Content-Security-Policy');

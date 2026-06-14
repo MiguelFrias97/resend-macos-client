@@ -53,5 +53,7 @@ const TYPE_EXT = {
 export function typeMismatch(contentType, name) {
   const exts = TYPE_EXT[(contentType || '').toLowerCase()];
   if (!exts) return false;
-  return !exts.includes(extOf(sanitizeFilename(name)));
+  const ext = extOf(sanitizeFilename(name));
+  if (!ext) return false; // no extension → can't claim a mismatch
+  return !exts.includes(ext);
 }

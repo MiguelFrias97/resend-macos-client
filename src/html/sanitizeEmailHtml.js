@@ -54,7 +54,9 @@ export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
       img: ['src', 'alt', 'width', 'height'],
     },
     allowedStyles: SAFE_STYLES,
-    allowedSchemes: ['https', 'mailto', 'cidcache'],
+    // http/https/mailto links are allowed (they open externally, not loaded);
+    // cidcache serves inline images. javascript:/data: hrefs stay disallowed.
+    allowedSchemes: ['http', 'https', 'mailto', 'cidcache'],
     transformTags: {
       img: (tagName, attribs) => {
         let src = attribs.src || '';

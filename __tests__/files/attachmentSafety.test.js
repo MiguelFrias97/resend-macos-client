@@ -16,3 +16,7 @@ test('typeMismatch flags declared-type vs extension disagreement', () => {
   expect(typeMismatch('application/pdf', 'thing.exe')).toBe(true);
   expect(typeMismatch('application/pdf', 'thing.pdf')).toBe(false);
 });
+
+test('typeMismatch does not flag a file that has no extension', () => {
+  expect(typeMismatch('image/png', 'screenshot')).toBe(false);
+});

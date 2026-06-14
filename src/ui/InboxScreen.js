@@ -7,7 +7,6 @@ import {createLocalStore} from '../data/localStore';
 import {openDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
 import {startSyncLoop} from '../core/sync';
-import {arrayBufferToBase64} from '../files/base64';
 import {sanitizeFilename} from '../files/attachmentSafety';
 
 export default function InboxScreen({apiKey, makeStore, makeSource}) {
@@ -49,22 +48,16 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     };
   }, [apiKey, makeStore, makeSource]);
 
-  // Download an attachment's bytes into the per-message cache, returning the
-  // path. Inline (cid) images pass quarantine=false since they're served
-  // internally and never opened through Gatekeeper.
+  // Resolve an attachment's presigned URL, then let the native module download
+  // the bytes straight into the per-message cache (no base64 across the bridge).
+  // Inline (cid) images pass quarantine=false since they're served internally.
   const downloadToCache = async (messageId, att, name, quarantine = true) => {
-    const {source} = servicesRef.current;
+    const services = servicesRef.current;
+    if (!services) throw new Error('services not ready');
     const AttachmentFile = require('../native/AttachmentFile');
-    const meta = await source.getAttachment(messageId, att.id);
+    const meta = await services.source.getAttachment(messageId, att.id);
     if (!meta.downloadUrl) throw new Error('no download url');
-    const res = await source.downloadBytes(meta.downloadUrl);
-    const buf = await res.arrayBuffer();
-    return AttachmentFile.writeToCache(
-      messageId,
-      name,
-      arrayBufferToBase64(buf),
-      quarantine,
-    );
+    return AttachmentFile.downloadToCache(messageId, name, meta.downloadUrl, quarantine);
   };
 
   const bodyDeps = useMemo(() => {
@@ -83,8 +76,12 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
           const AttachmentFile = require('../native/AttachmentFile');
           const atts = await store.listAttachments(id);
           for (const att of atts) {
-            if (!att.contentId) continue;
-            await downloadToCache(id, att, att.contentId, false);
+            if (!att.contentId || att.downloaded) continue;
+            // Lowercase the name: WKWebView lowercases the cidcache:// host, so
+            // the cache filename must match for uppercase Content-IDs to resolve.
+            const name = String(att.contentId).toLowerCase();
+            const path = await downloadToCache(id, att, name, false);
+            await store.markAttachmentDownloaded(att.id, path);
           }
           return await AttachmentFile.cacheDir(id);
         } catch (e) {
@@ -110,7 +107,9 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     try {
       const AttachmentFile = require('../native/AttachmentFile');
       const safe = sanitizeFilename(att.filename);
-      const path = att.localPath || (await downloadToCache(selected.id, att, safe));
+      // Always download a fresh quarantined copy for saving — the cid cache (if
+      // any) is non-quarantined and stored under a different name.
+      const path = await downloadToCache(selected.id, att, safe, true);
       await AttachmentFile.saveAs(path, safe);
     } catch (e) {
       // User cancelled the save panel, or a transient failure — nothing to surface.
