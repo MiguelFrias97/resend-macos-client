@@ -139,7 +139,7 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
       return
     }
 
-    let mime = mimeType(forPath: filePath)
+    let mime = mimeType(forPath: filePath, data: data)
     let response = URLResponse(url: url,
                               mimeType: mime,
                               expectedContentLength: data.count,
@@ -161,7 +161,16 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
                   userInfo: [NSLocalizedDescriptionKey: message])
   }
 
-  private func mimeType(forPath path: String) -> String {
+  private func mimeType(forPath path: String, data: Data) -> String {
+    // cid images are cached under their content id with no extension, so sniff
+    // the magic bytes first; fall back to the extension.
+    if data.count >= 4 {
+      let b = [UInt8](data.prefix(4))
+      if b[0] == 0x89, b[1] == 0x50, b[2] == 0x4E, b[3] == 0x47 { return "image/png" }
+      if b[0] == 0xFF, b[1] == 0xD8, b[2] == 0xFF { return "image/jpeg" }
+      if b[0] == 0x47, b[1] == 0x49, b[2] == 0x46 { return "image/gif" }
+      if b[0] == 0x52, b[1] == 0x49, b[2] == 0x46, b[3] == 0x46 { return "image/webp" }
+    }
     let ext = (path as NSString).pathExtension.lowercased()
     switch ext {
     case "png": return "image/png"

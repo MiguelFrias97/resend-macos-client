@@ -68,10 +68,13 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       fetchBody: id => source.getReceivedEmail(id),
       saveBody: (id, b) => store.saveBody(id, b),
       saveAttachments: (id, a) => store.saveAttachments(id, a),
-      // Cache each inline (cid) image so the WKWebView's cidcache:// handler resolves it.
-      cacheCidImages: async (id, atts) => {
+      // Cache each inline (cid) image so the WKWebView's cidcache:// handler
+      // resolves it. Reads attachments from the store, so it works on both the
+      // fresh-fetch path and revisits to an already-cached body.
+      cacheCidImages: async id => {
         try {
           const AttachmentFile = require('../native/AttachmentFile');
+          const atts = await store.listAttachments(id);
           for (const att of atts) {
             if (!att.contentId) continue;
             await downloadToCache(id, att, att.contentId);

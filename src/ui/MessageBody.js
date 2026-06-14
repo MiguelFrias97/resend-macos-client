@@ -19,13 +19,12 @@ export default function MessageBody({messageId, allowRemote = false, deps}) {
           await deps.saveAttachments(messageId, fetched.attachments);
         }
         bodyHtml = fetched.html;
-        if (deps.cacheCidImages) {
-          const dir = await deps.cacheCidImages(
-            messageId,
-            fetched.attachments || [],
-          );
-          if (!cancelled) setCacheDir(dir || '');
-        }
+      }
+      // Always (re)cache inline images so the cidcache:// handler resolves them,
+      // including on revisits to an already-fetched body.
+      if (deps.cacheCidImages) {
+        const dir = await deps.cacheCidImages(messageId);
+        if (!cancelled) setCacheDir(dir || '');
       }
       if (!cancelled) setHtml(bodyHtml || '');
       if (!cancelled && deps.onLoaded) deps.onLoaded(messageId);

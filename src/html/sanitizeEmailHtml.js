@@ -4,12 +4,43 @@ function rewriteCid(value) {
   return value.replace(/^cid:(.+)$/i, (_, id) => `cidcache://${id}`);
 }
 
+// Inline-style properties that cannot pull remote content. Deliberately EXCLUDES
+// background / background-image (which permit url()), so CSS can't smuggle in a
+// tracker even before the CSP catches it.
+const SAFE_STYLES = {
+  '*': {
+    color: [/.*/],
+    'background-color': [/.*/],
+    'text-align': [/.*/],
+    'text-decoration': [/.*/],
+    'font-size': [/.*/],
+    'font-weight': [/.*/],
+    'font-style': [/.*/],
+    'font-family': [/.*/],
+    'line-height': [/.*/],
+    width: [/.*/],
+    height: [/.*/],
+    padding: [/.*/],
+    margin: [/.*/],
+    border: [/.*/],
+  },
+};
+
+// Engine-level enforcement: even if some CSS slips past the allowlist, the
+// WebKit CSP blocks remote image/font loads unless the user opts in.
+function contentSecurityPolicy(allowRemote) {
+  const img = allowRemote ? 'cidcache: data: https:' : 'cidcache: data:';
+  const font = allowRemote ? 'font-src data: https:' : 'font-src data:';
+  return `default-src 'none'; img-src ${img}; style-src 'unsafe-inline'; ${font}`;
+}
+
 export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
   if (!html) return '';
-  return sanitizeHtml(html, {
+  const body = sanitizeHtml(html, {
+    // Note: <style> is intentionally NOT allowed — embedded stylesheets can load
+    // remote content via url()/@import.
     allowedTags: sanitizeHtml.defaults.allowedTags.concat([
       'img',
-      'style',
       'table',
       'thead',
       'tbody',
@@ -22,6 +53,7 @@ export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
       a: ['href', 'name', 'target'],
       img: ['src', 'alt', 'width', 'height'],
     },
+    allowedStyles: SAFE_STYLES,
     allowedSchemes: ['https', 'mailto', 'cidcache'],
     transformTags: {
       img: (tagName, attribs) => {
@@ -34,6 +66,11 @@ export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
         return {tagName: 'img', attribs: {...attribs, src}};
       },
     },
-    exclusiveFilter: frame => frame.tag === 'script',
   });
+  const csp = contentSecurityPolicy(allowRemote);
+  return (
+    '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+    `<meta http-equiv="Content-Security-Policy" content="${csp}">` +
+    `</head><body>${body}</body></html>`
+  );
 }
