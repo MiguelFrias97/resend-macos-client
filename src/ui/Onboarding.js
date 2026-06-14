@@ -21,7 +21,7 @@ export default function Onboarding({onComplete, deps = {}}) {
     }
     await save(key);
     setBusy(false);
-    onComplete();
+    onComplete(key);
   }
 
   return (

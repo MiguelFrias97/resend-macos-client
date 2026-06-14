@@ -6,11 +6,11 @@ import {getApiKey} from './src/native/Keychain';
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [authed, setAuthed] = useState(false);
+  const [apiKey, setApiKey] = useState(null);
 
   useEffect(() => {
     getApiKey().then(k => {
-      setAuthed(Boolean(k));
+      setApiKey(k || null);
       setReady(true);
     });
   }, []);
@@ -22,9 +22,9 @@ export default function App() {
       </View>
     );
   }
-  return authed ? (
-    <InboxScreen />
+  return apiKey ? (
+    <InboxScreen apiKey={apiKey} />
   ) : (
-    <Onboarding onComplete={() => setAuthed(true)} />
+    <Onboarding onComplete={k => setApiKey(k)} />
   );
 }

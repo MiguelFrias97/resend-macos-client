@@ -13,6 +13,6 @@ test('calls onComplete after a valid key is saved', async () => {
   );
   fireEvent.changeText(getByPlaceholderText('re_...'), 're_valid');
   fireEvent.press(getByText('Connect'));
-  await waitFor(() => expect(onComplete).toHaveBeenCalled());
+  await waitFor(() => expect(onComplete).toHaveBeenCalledWith('re_valid'));
   expect(deps.save).toHaveBeenCalledWith('re_valid');
 });

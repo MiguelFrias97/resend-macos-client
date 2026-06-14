@@ -5,33 +5,46 @@ import {createLocalStore} from '../data/localStore';
 import {openDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
 import {startSyncLoop} from '../core/sync';
-import {getApiKey} from '../native/Keychain';
 
-export default function InboxScreen() {
+export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const [messages, setMessages] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     let stop = () => {};
     (async () => {
-      const apiKey = await getApiKey();
-      const store = await createLocalStore(openDb());
-      const source = createMailSource({apiKey});
-      const refresh = async () => setMessages(await store.listInbox());
-      await refresh();
-      const stopSync = startSyncLoop({source, store});
-      const ui = setInterval(refresh, 5000);
-      stop = () => {
-        clearInterval(ui);
-        stopSync();
+      const store = makeStore ? await makeStore() : await createLocalStore(openDb());
+      const source = makeSource ? makeSource() : createMailSource({apiKey});
+      if (cancelled) return;
+      const refresh = async () => {
+        const list = await store.listInbox();
+        if (!cancelled) setMessages(list);
       };
+      await refresh();
+      const stopSync = startSyncLoop({
+        source,
+        store,
+        onError: e => {
+          if (!cancelled) setError(e.message);
+        },
+        onTick: () => refresh(),
+      });
+      stop = () => stopSync();
     })();
-    return () => stop();
-  }, []);
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [apiKey, makeStore, makeSource]);
 
   return (
     <View style={{flex: 1, flexDirection: 'row'}}>
       <View style={{width: 320, borderRightWidth: 1, borderRightColor: '#e5e5e5'}}>
+        {error ? (
+          <Text style={{padding: 12, color: '#b00'}}>Sync error: {error}</Text>
+        ) : null}
         <MessageList messages={messages} onSelect={setSelected} selectedId={selected?.id} />
       </View>
       <View style={{flex: 1, padding: 16}}>
