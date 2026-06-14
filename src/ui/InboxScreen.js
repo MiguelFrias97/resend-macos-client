@@ -3,6 +3,7 @@ import {View, Text, Pressable} from 'react-native';
 import MessageList from './MessageList';
 import MessageBody from './MessageBody';
 import AttachmentTray from './AttachmentTray';
+import ComposeScratchScreen from './ComposeScratchScreen';
 import {createLocalStore} from '../data/localStore';
 import {openDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
@@ -21,13 +22,16 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const [allowRemote, setAllowRemote] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [ready, setReady] = useState(false);
+  const [composing, setComposing] = useState(false);
   const servicesRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
     let stop = () => {};
     (async () => {
-      const store = makeStore ? await makeStore() : await createLocalStore(openDb());
+      const store = makeStore
+        ? await makeStore()
+        : await createLocalStore(openDb());
       const source = makeSource ? makeSource() : createMailSource({apiKey});
       if (cancelled) return;
       servicesRef.current = {store, source};
@@ -62,7 +66,12 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     const AttachmentFile = require('../native/AttachmentFile');
     const meta = await services.source.getAttachment(messageId, att.id);
     if (!meta.downloadUrl) throw new Error('no download url');
-    return AttachmentFile.downloadToCache(messageId, name, meta.downloadUrl, quarantine);
+    return AttachmentFile.downloadToCache(
+      messageId,
+      name,
+      meta.downloadUrl,
+      quarantine,
+    );
   };
 
   const bodyDeps = useMemo(() => {
@@ -125,7 +134,8 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       const AttachmentFile = require('../native/AttachmentFile');
       const safe = sanitizeFilename(att.filename);
       const dangerous =
-        isDangerousFilename(att.filename) || typeMismatch(att.contentType, att.filename);
+        isDangerousFilename(att.filename) ||
+        typeMismatch(att.contentType, att.filename);
       // Always download a fresh quarantined copy for saving — the cid cache (if
       // any) is non-quarantined and stored under a different name.
       const path = await downloadToCache(selected.id, att, safe, true);
@@ -136,48 +146,88 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   };
 
   return (
-    <View style={{flex: 1, flexDirection: 'row'}}>
-      <View style={{width: 320, borderRightWidth: 1, borderRightColor: '#e5e5e5'}}>
-        {error ? (
-          <Text style={{padding: 12, color: '#b00'}}>Sync error: {error}</Text>
-        ) : null}
-        <MessageList messages={messages} onSelect={onSelect} selectedId={selected?.id} />
-      </View>
-      <View style={{flex: 1}}>
-        {selected && bodyDeps ? (
-          <View style={{flex: 1}}>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: 16,
-                paddingVertical: 10,
-                borderBottomWidth: 1,
-                borderBottomColor: '#eee',
-              }}>
-              <Text style={{fontSize: 16, fontWeight: '600'}} numberOfLines={1}>
-                {selected.subject}
-              </Text>
-              {!allowRemote ? (
-                <Pressable onPress={() => setAllowRemote(true)}>
-                  <Text style={{color: '#3a6ea5'}}>Load remote images</Text>
-                </Pressable>
-              ) : null}
+    <View style={{flex: 1}}>
+      <View style={{flex: 1, flexDirection: 'row'}}>
+        <View
+          style={{width: 320, borderRightWidth: 1, borderRightColor: '#e5e5e5'}}
+        >
+          {/* TODO(M6): the scratch composer is a demo surface — replace with the
+              real reply/compose screen wired to the send pipeline. */}
+          <Pressable
+            onPress={() => setComposing(true)}
+            style={{
+              padding: 10,
+              borderBottomWidth: 1,
+              borderBottomColor: '#eee',
+            }}
+          >
+            <Text style={{color: '#3a6ea5', fontWeight: '600'}}>
+              ＋ Compose
+            </Text>
+          </Pressable>
+          {error ? (
+            <Text style={{padding: 12, color: '#b00'}}>
+              Sync error: {error}
+            </Text>
+          ) : null}
+          <MessageList
+            messages={messages}
+            onSelect={onSelect}
+            selectedId={selected?.id}
+          />
+        </View>
+        <View style={{flex: 1}}>
+          {selected && bodyDeps ? (
+            <View style={{flex: 1}}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#eee',
+                }}
+              >
+                <Text
+                  style={{fontSize: 16, fontWeight: '600'}}
+                  numberOfLines={1}
+                >
+                  {selected.subject}
+                </Text>
+                {!allowRemote ? (
+                  <Pressable onPress={() => setAllowRemote(true)}>
+                    <Text style={{color: '#3a6ea5'}}>Load remote images</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              <MessageBody
+                messageId={selected.id}
+                allowRemote={allowRemote}
+                deps={bodyDeps}
+              />
+              <AttachmentTray
+                attachments={attachments}
+                onSave={onSaveAttachment}
+              />
             </View>
-            <MessageBody
-              messageId={selected.id}
-              allowRemote={allowRemote}
-              deps={bodyDeps}
-            />
-            <AttachmentTray attachments={attachments} onSave={onSaveAttachment} />
-          </View>
-        ) : (
-          <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-            <Text style={{color: '#999'}}>Select a message</Text>
-          </View>
-        )}
+          ) : (
+            <View
+              style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}
+            >
+              <Text style={{color: '#999'}}>Select a message</Text>
+            </View>
+          )}
+        </View>
       </View>
+      {composing ? (
+        <View
+          style={{position: 'absolute', top: 0, left: 0, right: 0, bottom: 0}}
+        >
+          <ComposeScratchScreen onClose={() => setComposing(false)} />
+        </View>
+      ) : null}
     </View>
   );
 }
