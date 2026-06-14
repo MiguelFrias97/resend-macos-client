@@ -1,4 +1,8 @@
-import {validateReceivedEmail} from '../../src/data/validators';
+import {
+  validateReceivedEmail,
+  validateReceivedEmailContent,
+  validateAttachmentMeta,
+} from '../../src/data/validators';
 import {receivedListPage} from '../../__mocks__/resendFixtures';
 
 test('accepts a well-formed received email and normalizes it', () => {
@@ -30,4 +34,23 @@ test('normalizes whitespace-separated references string to an array', () => {
     references: '<root@x>   <mid@x>\n<last@x>',
   });
   expect(out.references).toEqual(['<root@x>', '<mid@x>', '<last@x>']);
+});
+
+test('validateReceivedEmailContent normalizes body + headers + attachments', () => {
+  const out = validateReceivedEmailContent({
+    id: 'recv_1',
+    html: '<p>Hi</p>',
+    text: 'Hi',
+    headers: {'in-reply-to': '<a@x>'},
+    attachments: [{id: 'att_1', filename: 'a.pdf', content_type: 'application/pdf', size: 9, content_id: 'cid1'}],
+  });
+  expect(out.html).toBe('<p>Hi</p>');
+  expect(out.text).toBe('Hi');
+  expect(out.attachments[0].contentId).toBe('cid1');
+});
+
+test('validateAttachmentMeta requires id and maps download_url', () => {
+  const a = validateAttachmentMeta({id: 'att_1', filename: 'a.pdf', content_type: 'application/pdf', size: 9, download_url: 'https://d/x'});
+  expect(a.downloadUrl).toBe('https://d/x');
+  expect(a.filename).toBe('a.pdf');
 });

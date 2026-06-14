@@ -31,3 +31,30 @@ export function validateReceivedEmail(raw) {
     attachments,
   };
 }
+
+export function validateAttachmentMeta(raw) {
+  const id = req(raw, 'id');
+  return {
+    id,
+    filename: raw.filename || 'attachment',
+    contentType: raw.content_type || 'application/octet-stream',
+    size: typeof raw.size === 'number' ? raw.size : 0,
+    contentId: raw.content_id || null,
+    disposition: raw.content_disposition || null,
+    downloadUrl: raw.download_url || null,
+  };
+}
+
+export function validateReceivedEmailContent(raw) {
+  const id = req(raw, 'id');
+  const attachments = Array.isArray(raw.attachments)
+    ? raw.attachments.map(validateAttachmentMeta)
+    : [];
+  return {
+    id,
+    html: typeof raw.html === 'string' ? raw.html : null,
+    text: typeof raw.text === 'string' ? raw.text : null,
+    headers: raw.headers && typeof raw.headers === 'object' ? raw.headers : {},
+    attachments,
+  };
+}
