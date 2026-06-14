@@ -46,6 +46,22 @@ test('processes oldest-first so a reply threads onto its root in one pass', asyn
   expect(byId.recv_reply.threadId).toBe(byId.recv_root.threadId);
 });
 
+test('syncOnce reports only not-yet-seen messages via onNewMessages', async () => {
+  const source = {
+    listReceived: async () => [
+      {id: 'a', from: 'x', to: ['y'], subject: 's', rfcMessageId: null, references: [], inReplyTo: null, receivedAt: '2026-06-12T10:00:00Z'},
+    ],
+  };
+  const store = {upsertMessage: async () => {}};
+  const knownIds = new Set();
+  const fresh = [];
+  await syncOnce({source, store, knownIds, onNewMessages: ms => fresh.push(...ms)});
+  expect(fresh.map(m => m.id)).toEqual(['a']);
+  fresh.length = 0;
+  await syncOnce({source, store, knownIds, onNewMessages: ms => fresh.push(...ms)});
+  expect(fresh).toEqual([]);
+});
+
 test('startSyncLoop calls onError when syncOnce throws', async () => {
   const source = {
     listReceived: async () => {

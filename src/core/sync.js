@@ -1,6 +1,13 @@
 import {threadIdFor} from './threading';
 
-export async function syncOnce({source, store, knownThreads = {}, onSkip} = {}) {
+export async function syncOnce({
+  source,
+  store,
+  knownThreads = {},
+  knownIds,
+  onNewMessages,
+  onSkip,
+} = {}) {
   const messages = source.listAllReceived
     ? await source.listAllReceived({onSkip})
     : await source.listReceived({limit: 100, onSkip});
@@ -13,13 +20,19 @@ export async function syncOnce({source, store, knownThreads = {}, onSkip} = {}) 
     if (ta !== tb) return ta - tb;
     return String(a.id || '').localeCompare(String(b.id || ''));
   });
+  const fresh = [];
   let count = 0;
   for (const m of ordered) {
     const threadId = threadIdFor(m, knownThreads);
     if (m.rfcMessageId) knownThreads[m.rfcMessageId] = threadId;
     await store.upsertMessage({...m, threadId});
+    if (knownIds && !knownIds.has(m.id)) {
+      fresh.push(m);
+      knownIds.add(m.id);
+    }
     count += 1;
   }
+  if (onNewMessages && fresh.length) onNewMessages(fresh);
   return count;
 }
 
@@ -30,11 +43,23 @@ export function startSyncLoop({
   schedule = setInterval,
   onError,
   onTick,
+  onNewMessages,
 } = {}) {
   const knownThreads = {};
+  const knownIds = new Set();
+  let seeded = false;
   const tick = async () => {
     try {
-      const n = await syncOnce({source, store, knownThreads});
+      // The first tick seeds knownIds without notifying (don't alert for the
+      // whole existing mailbox on launch).
+      const n = await syncOnce({
+        source,
+        store,
+        knownThreads,
+        knownIds,
+        onNewMessages: seeded ? onNewMessages : undefined,
+      });
+      seeded = true;
       if (onTick) onTick(n);
     } catch (e) {
       if (onError) onError(e);
