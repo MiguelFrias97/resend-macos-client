@@ -28,6 +28,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const [replying, setReplying] = useState(false);
   const [originalHtml, setOriginalHtml] = useState('');
   const servicesRef = useRef(null);
+  const outboxBusyRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,8 +55,16 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         },
         onTick: () => {
           refresh();
-          // Retry any reply still queued/failed in the outbox.
-          processOutbox({store, sender}).catch(() => {});
+          // Retry any reply still queued/failed in the outbox, but don't let a
+          // tick re-enter the outbox while a prior drain is still in flight.
+          if (!outboxBusyRef.current) {
+            outboxBusyRef.current = true;
+            processOutbox({store, sender})
+              .catch(() => {})
+              .finally(() => {
+                outboxBusyRef.current = false;
+              });
+          }
         },
       });
       stop = () => stopSync();
