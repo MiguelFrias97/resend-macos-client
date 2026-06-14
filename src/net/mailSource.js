@@ -40,7 +40,11 @@ export function createMailSource({apiKey, fetchImpl} = {}) {
       if (!raw.length) break;
       all.push(...normalize(raw, onSkip));
       if (raw.length < pageSize) break;
-      after = raw[raw.length - 1].id;
+      // Advance only on a usable id; otherwise stop rather than drop the cursor
+      // and re-fetch page 1 forever (an undefined `after` omits the param).
+      const next = raw[raw.length - 1].id;
+      if (!next) break;
+      after = next;
     }
     return all;
   }

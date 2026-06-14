@@ -18,7 +18,8 @@ class Keychain: NSObject {
     SecItemDelete(query as CFDictionary)
     var add = query
     add[kSecValueData as String] = data
-    add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+    // ThisDeviceOnly so the API key never replicates via iCloud Keychain.
+    add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
     let status = SecItemAdd(add as CFDictionary, nil)
     if status == errSecSuccess { resolve(true) }
     else { reject("keychain_set", "status \(status)", nil) }
