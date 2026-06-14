@@ -22,6 +22,7 @@ export default function MessageList({messages, onSelect, selectedId, onToggleSta
           }}>
           {!item.seen ? (
             <View
+              testID="unread-dot"
               style={{
                 width: 8,
                 height: 8,

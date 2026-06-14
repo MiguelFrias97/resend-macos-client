@@ -37,18 +37,22 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const filterRef = useRef('inbox');
   const queryRef = useRef('');
   const selectedRef = useRef(null);
+  const listSeqRef = useRef(0);
+  const searchTimerRef = useRef(null);
 
   // Load the message list for the current filter/search, reading from refs so
-  // the sync tick and effects all use the latest values.
+  // the sync tick and effects all use the latest values. A sequence guard drops
+  // a slow result that resolves after a newer load (no out-of-order overwrite).
   const loadListRef = useRef(async () => {});
   loadListRef.current = async () => {
     const services = servicesRef.current;
     if (!services) return;
+    const seq = ++listSeqRef.current;
     const q = queryRef.current.trim();
     const list = q
       ? await services.store.searchMessages(q)
       : await services.store.listMessages(filterRef.current);
-    setMessages(list);
+    if (seq === listSeqRef.current) setMessages(list);
   };
 
   useEffect(() => {
@@ -101,7 +105,9 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const onQuery = q => {
     queryRef.current = q;
     setQuery(q);
-    loadListRef.current();
+    // Debounce: one query after typing settles, not one per keystroke.
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => loadListRef.current(), 200);
   };
 
   const downloadToCache = async (messageId, att, name, quarantine = true) => {

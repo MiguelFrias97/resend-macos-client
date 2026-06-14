@@ -29,7 +29,7 @@ async function runSchema(db) {
 const FILTERS = {
   inbox: `direction='received' AND archived=0`,
   unread: `direction='received' AND archived=0 AND seen=0`,
-  starred: `direction='received' AND starred=1`,
+  starred: `direction='received' AND starred=1 AND archived=0`,
   archive: `direction='received' AND archived=1`,
 };
 
@@ -89,7 +89,7 @@ export async function createLocalStore(db) {
 
   async function listThread(threadId) {
     const res = await db.execute(
-      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction, html, text, body_fetched FROM messages WHERE thread_id=? ORDER BY received_at ASC`,
+      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction, html, text, body_fetched FROM messages WHERE thread_id=? ORDER BY received_at ASC, id ASC`,
       [threadId],
     );
     return res.rows.map(mapRow);

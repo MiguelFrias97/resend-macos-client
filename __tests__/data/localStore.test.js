@@ -117,7 +117,7 @@ function makeFakeDb() {
         if (/archived=0 AND seen=0/i.test(sql)) {
           filtered = rows.filter(r => r.direction === 'received' && !r.archived && !r.seen);
         } else if (/starred=1/i.test(sql)) {
-          filtered = rows.filter(r => r.direction === 'received' && r.starred);
+          filtered = rows.filter(r => r.direction === 'received' && r.starred && !r.archived);
         } else if (/archived=1/i.test(sql)) {
           filtered = rows.filter(r => r.direction === 'received' && r.archived);
         } else {
@@ -214,6 +214,11 @@ test('flags: setSeen/setStarred/setArchived and filtered listing', async () => {
   const b = (await store.listMessages('inbox'))[0];
   expect(b.starred).toBe(true);
   expect(b.seen).toBe(false);
+
+  // Archiving a starred message removes it from Starred too.
+  await store.setArchived('b', true);
+  expect((await store.listMessages('starred')).map(m => m.id)).toEqual([]);
+  expect((await store.listMessages('inbox')).map(m => m.id)).toEqual([]);
 });
 
 test('searchMessages matches sender, subject, and cached body', async () => {
