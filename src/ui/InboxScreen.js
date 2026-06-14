@@ -7,6 +7,9 @@ import Sidebar from './Sidebar';
 import SearchBar from './SearchBar';
 import ThreadView from './ThreadView';
 import ComposeSheet from './ComposeSheet';
+import EmptyState from './EmptyState';
+import {useTheme} from './useTheme';
+import {notify} from '../native/Notifications';
 import {createLocalStore} from '../data/localStore';
 import {openDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
@@ -22,6 +25,7 @@ import {
 } from '../files/attachmentSafety';
 
 export default function InboxScreen({apiKey, makeStore, makeSource}) {
+  const theme = useTheme();
   const [messages, setMessages] = useState([]);
   const [selected, setSelected] = useState(null);
   const [thread, setThread] = useState([]);
@@ -79,6 +83,14 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         store,
         onError: e => {
           if (!cancelled) setError(e.message);
+        },
+        onNewMessages: fresh => {
+          const n = fresh.length;
+          notify(
+            n === 1 ? 'New message' : `${n} new messages`,
+            fresh[0] ? `${fresh[0].from}: ${fresh[0].subject || ''}` : '',
+          );
+          loadListRef.current();
         },
         onTick: () => {
           loadListRef.current();
@@ -329,38 +341,62 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     }
   };
 
+  const emptyMessage = () => {
+    const q = (query || '').trim();
+    if (q) return `No results for "${q}"`;
+    switch (filter) {
+      case 'unread':
+        return 'No unread messages';
+      case 'starred':
+        return 'No starred messages';
+      case 'archive':
+        return 'No archived messages';
+      default:
+        return 'Your inbox is empty';
+    }
+  };
+
   return (
-    <View style={{flex: 1}}>
+    <View style={{flex: 1, backgroundColor: theme.bg}}>
       <View style={{flex: 1, flexDirection: 'row'}}>
         <Sidebar selected={filter} onSelect={onFilter} />
         <View
-          style={{width: 300, borderRightWidth: 1, borderRightColor: '#e5e5e5'}}
+          style={{
+            width: 300,
+            borderRightWidth: 1,
+            borderRightColor: theme.border,
+            backgroundColor: theme.bg,
+          }}
         >
           <Pressable
             onPress={() => setComposeMode('compose')}
             style={{
               padding: 10,
               borderBottomWidth: 1,
-              borderBottomColor: '#eee',
+              borderBottomColor: theme.divider,
             }}
           >
-            <Text style={{color: '#3a6ea5', fontWeight: '600'}}>
+            <Text style={{color: theme.accent, fontWeight: '600'}}>
               ＋ Compose
             </Text>
           </Pressable>
           <SearchBar value={query} onChange={onQuery} />
           {error ? (
-            <Text style={{padding: 12, color: '#b00'}}>
-              Sync error: {error}
+            <Text style={{padding: 12, color: theme.danger}}>
+              Couldn't reach Resend — retrying… (Sync error: {error})
             </Text>
           ) : null}
-          <MessageList
-            messages={messages}
-            onSelect={onSelect}
-            selectedId={selected?.id}
-            onToggleStar={onToggleStar}
-            onArchive={onArchive}
-          />
+          {ready && messages.length === 0 ? (
+            <EmptyState message={emptyMessage()} />
+          ) : (
+            <MessageList
+              messages={messages}
+              onSelect={onSelect}
+              selectedId={selected?.id}
+              onToggleStar={onToggleStar}
+              onArchive={onArchive}
+            />
+          )}
         </View>
         <View style={{flex: 1}}>
           {selected && bodyDeps ? (
@@ -372,11 +408,11 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
                   paddingHorizontal: 16,
                   paddingVertical: 10,
                   borderBottomWidth: 1,
-                  borderBottomColor: '#eee',
+                  borderBottomColor: theme.divider,
                 }}
               >
                 <Text
-                  style={{fontSize: 16, fontWeight: '600', flex: 1}}
+                  style={{fontSize: 16, fontWeight: '600', flex: 1, color: theme.text}}
                   numberOfLines={1}
                 >
                   {selected.subject}
@@ -386,18 +422,18 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
                     onPress={() => setAllowRemote(true)}
                     style={{marginLeft: 12}}
                   >
-                    <Text style={{color: '#3a6ea5'}}>Load remote images</Text>
+                    <Text style={{color: theme.accent}}>Load remote images</Text>
                   </Pressable>
                 ) : null}
                 {!replying ? (
                   <Pressable onPress={startReply} style={{marginLeft: 12}}>
-                    <Text style={{color: '#3a6ea5', fontWeight: '600'}}>
+                    <Text style={{color: theme.accent, fontWeight: '600'}}>
                       Reply
                     </Text>
                   </Pressable>
                 ) : null}
                 <Pressable onPress={startForward} style={{marginLeft: 12}}>
-                  <Text style={{color: '#3a6ea5', fontWeight: '600'}}>
+                  <Text style={{color: theme.accent, fontWeight: '600'}}>
                     Forward
                   </Text>
                 </Pressable>
@@ -423,7 +459,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
             <View
               style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}
             >
-              <Text style={{color: '#999'}}>Select a message</Text>
+              <Text style={{color: theme.textMuted}}>Select a message</Text>
             </View>
           )}
         </View>
@@ -436,7 +472,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: '#fff',
+            backgroundColor: theme.bg,
           }}
         >
           <ComposeSheet
