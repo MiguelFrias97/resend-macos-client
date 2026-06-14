@@ -1,5 +1,6 @@
 import React from 'react';
 import {View, Text, Pressable} from 'react-native';
+import {useTheme} from './useTheme';
 
 const FILTERS = [
   {key: 'inbox', label: 'Inbox'},
@@ -9,8 +10,9 @@ const FILTERS = [
 ];
 
 export default function Sidebar({selected, onSelect}) {
+  const theme = useTheme();
   return (
-    <View style={{width: 160, paddingVertical: 8, backgroundColor: '#f2f0f5'}}>
+    <View style={{width: 160, paddingVertical: 8, backgroundColor: theme.panel}}>
       {FILTERS.map(f => (
         <Pressable
           key={f.key}
@@ -20,11 +22,12 @@ export default function Sidebar({selected, onSelect}) {
             paddingHorizontal: 12,
             marginHorizontal: 6,
             borderRadius: 6,
-            backgroundColor: selected === f.key ? '#d9d4e6' : 'transparent',
+            backgroundColor:
+              selected === f.key ? theme.selectedBg : 'transparent',
           }}>
           <Text
             style={{
-              color: selected === f.key ? '#5b4aa6' : '#3a3a3a',
+              color: selected === f.key ? theme.accent : theme.text,
               fontWeight: selected === f.key ? '600' : '400',
             }}>
             {f.label}

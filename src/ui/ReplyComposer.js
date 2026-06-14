@@ -2,8 +2,10 @@ import React, {useRef, useState} from 'react';
 import {View, Text, Pressable} from 'react-native';
 import Composer from './Composer';
 import {assembleReplyPayload} from '../reply/assembleReply';
+import {useTheme} from './useTheme';
 
 export default function ReplyComposer({original, originalHtml, onSend}) {
+  const theme = useTheme();
   const contentRef = useRef({html: '', inlineImages: []});
   const [status, setStatus] = useState('idle');
   const [errorText, setErrorText] = useState('');
@@ -37,7 +39,7 @@ export default function ReplyComposer({original, originalHtml, onSend}) {
   };
 
   return (
-    <View style={{borderTopWidth: 1, borderTopColor: '#eee'}}>
+    <View style={{borderTopWidth: 1, borderTopColor: theme.divider, backgroundColor: theme.bg}}>
       <View style={{height: 180}}>
         <Composer onChange={handleChange} />
       </View>
@@ -46,12 +48,12 @@ export default function ReplyComposer({original, originalHtml, onSend}) {
           onPress={send}
           disabled={status === 'sending'}
           style={{
-            backgroundColor: '#d9d4e6',
+            backgroundColor: theme.selectedBg,
             borderRadius: 6,
             paddingVertical: 6,
             paddingHorizontal: 16,
           }}>
-          <Text style={{color: '#5b4aa6', fontWeight: '600'}}>
+          <Text style={{color: theme.accent, fontWeight: '600'}}>
             {status === 'sending' ? 'Sending…' : 'Send'}
           </Text>
         </Pressable>
@@ -60,7 +62,7 @@ export default function ReplyComposer({original, originalHtml, onSend}) {
         ) : null}
         {status === 'failed' ? (
           <Pressable onPress={send} style={{marginLeft: 12}}>
-            <Text style={{color: '#b00'}}>
+            <Text style={{color: theme.danger}}>
               {errorText ? `${errorText} — Retry` : 'Failed — Retry'}
             </Text>
           </Pressable>

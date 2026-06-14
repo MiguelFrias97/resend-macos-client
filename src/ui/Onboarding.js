@@ -2,8 +2,10 @@ import React, {useState} from 'react';
 import {View, Text, TextInput, Button} from 'react-native';
 import {verifyApiKey} from '../net/verifyApiKey';
 import {setApiKey} from '../native/Keychain';
+import {useTheme} from './useTheme';
 
 export default function Onboarding({onComplete, deps = {}}) {
+  const theme = useTheme();
   const verify = deps.verify || verifyApiKey;
   const save = deps.save || setApiKey;
   const [key, setKey] = useState('');
@@ -25,21 +27,32 @@ export default function Onboarding({onComplete, deps = {}}) {
   }
 
   return (
-    <View style={{padding: 24, gap: 12, maxWidth: 420}}>
-      <Text style={{fontSize: 20, fontWeight: '600'}}>Connect Resend</Text>
+    <View
+      style={{padding: 24, gap: 12, maxWidth: 420, backgroundColor: theme.bg}}>
+      <Text style={{fontSize: 20, fontWeight: '600', color: theme.text}}>
+        Connect Resend
+      </Text>
       <TextInput
         placeholder="re_..."
+        placeholderTextColor={theme.textMuted}
         value={key}
         onChangeText={setKey}
         autoCapitalize="none"
         secureTextEntry
-        style={{borderWidth: 1, borderColor: '#ccc', borderRadius: 6, padding: 8}}
+        style={{
+          borderWidth: 1,
+          borderColor: theme.border,
+          borderRadius: 6,
+          padding: 8,
+          color: theme.text,
+        }}
       />
-      {error ? <Text style={{color: 'red'}}>{error}</Text> : null}
+      {error ? <Text style={{color: theme.danger}}>{error}</Text> : null}
       <Button
         title={busy ? 'Connecting…' : 'Connect'}
         onPress={connect}
         disabled={busy}
+        color={theme.accent}
       />
     </View>
   );

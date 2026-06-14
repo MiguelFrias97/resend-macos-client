@@ -2,8 +2,10 @@ import React, {useEffect, useState} from 'react';
 import {View, Text, ActivityIndicator} from 'react-native';
 import MessageBodyView from '../native/MessageBodyView';
 import {sanitizeEmailHtml} from '../html/sanitizeEmailHtml';
+import {useTheme} from './useTheme';
 
 export default function MessageBody({messageId, allowRemote = false, deps}) {
+  const theme = useTheme();
   const [html, setHtml] = useState(null);
   const [cacheDir, setCacheDir] = useState('');
   const [error, setError] = useState(null);
@@ -43,14 +45,14 @@ export default function MessageBody({messageId, allowRemote = false, deps}) {
 
   if (error != null) {
     return (
-      <View style={{padding: 16}}>
-        <Text style={{color: '#b00'}}>Couldn't load this message: {error}</Text>
+      <View style={{padding: 16, backgroundColor: theme.bg}}>
+        <Text style={{color: theme.danger}}>Couldn't load this message: {error}</Text>
       </View>
     );
   }
   if (html == null) {
     return (
-      <View style={{padding: 16}}>
+      <View style={{padding: 16, backgroundColor: theme.bg}}>
         <ActivityIndicator />
       </View>
     );
