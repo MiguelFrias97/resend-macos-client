@@ -1,7 +1,7 @@
 export function collectInlineImages(model) {
   if (!model || !Array.isArray(model.blocks)) return [];
   return model.blocks
-    .filter(b => b.type === 'image')
+    .filter(b => b && b.type === 'image')
     .map(b => ({
       contentId: b.contentId,
       filename: b.filename,
