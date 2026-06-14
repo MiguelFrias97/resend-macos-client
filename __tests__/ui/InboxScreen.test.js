@@ -10,6 +10,7 @@ test('renders rows from the store', async () => {
       {id: 'm1', from: 'Marcus Lee <marcus@acme.com>', subject: 'Re: contract', receivedAt: '2026-06-12T14:14:00Z', seen: false, starred: false},
     ],
     searchMessages: async () => [],
+    getSetting: async () => null,
     upsertMessage: async () => {},
   };
   const makeStore = async () => store;
@@ -25,6 +26,7 @@ test('shows a sync error banner when the source throws', async () => {
   const store = {
     listMessages: async () => [],
     searchMessages: async () => [],
+    getSetting: async () => null,
     upsertMessage: async () => {},
   };
   const makeStore = async () => store;
@@ -47,6 +49,7 @@ test('selecting a message marks it read and loads its thread', async () => {
       {id: 'm1', threadId: 't1', from: 'Marcus Lee <marcus@acme.com>', subject: 'Re: contract', receivedAt: '2026-06-12T14:14:00Z', seen: false, starred: false},
     ],
     searchMessages: async () => [],
+    getSetting: async () => null,
     setSeen,
     listThread,
     upsertMessage: async () => {},
