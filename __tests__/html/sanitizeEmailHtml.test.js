@@ -2,7 +2,8 @@ import {sanitizeEmailHtml} from '../../src/html/sanitizeEmailHtml';
 
 test('strips script and event handlers', () => {
   const out = sanitizeEmailHtml('<p onclick="x()">hi</p><script>evil()</script>', {allowRemote: false});
-  expect(out).not.toMatch(/script/i);
+  expect(out).not.toMatch(/<script/i);
+  expect(out).not.toContain('evil()');
   expect(out).not.toMatch(/onclick/i);
 });
 

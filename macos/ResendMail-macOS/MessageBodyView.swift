@@ -171,6 +171,11 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
       if b[0] == 0x47, b[1] == 0x49, b[2] == 0x46 { return "image/gif" }
       if b[0] == 0x52, b[1] == 0x49, b[2] == 0x46, b[3] == 0x46 { return "image/webp" }
     }
+    // SVG is text-based (no magic bytes): detect a leading XML/svg marker.
+    if let head = String(data: data.prefix(256), encoding: .utf8) {
+      let trimmed = head.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+      if trimmed.hasPrefix("<?xml") || trimmed.hasPrefix("<svg") { return "image/svg+xml" }
+    }
     let ext = (path as NSString).pathExtension.lowercased()
     switch ext {
     case "png": return "image/png"

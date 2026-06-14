@@ -49,15 +49,22 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     };
   }, [apiKey, makeStore, makeSource]);
 
-  // Download an attachment's bytes into the per-message cache, returning the path.
-  const downloadToCache = async (messageId, att, name) => {
+  // Download an attachment's bytes into the per-message cache, returning the
+  // path. Inline (cid) images pass quarantine=false since they're served
+  // internally and never opened through Gatekeeper.
+  const downloadToCache = async (messageId, att, name, quarantine = true) => {
     const {source} = servicesRef.current;
     const AttachmentFile = require('../native/AttachmentFile');
     const meta = await source.getAttachment(messageId, att.id);
     if (!meta.downloadUrl) throw new Error('no download url');
     const res = await source.downloadBytes(meta.downloadUrl);
     const buf = await res.arrayBuffer();
-    return AttachmentFile.writeToCache(messageId, name, arrayBufferToBase64(buf));
+    return AttachmentFile.writeToCache(
+      messageId,
+      name,
+      arrayBufferToBase64(buf),
+      quarantine,
+    );
   };
 
   const bodyDeps = useMemo(() => {
@@ -77,7 +84,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
           const atts = await store.listAttachments(id);
           for (const att of atts) {
             if (!att.contentId) continue;
-            await downloadToCache(id, att, att.contentId);
+            await downloadToCache(id, att, att.contentId, false);
           }
           return await AttachmentFile.cacheDir(id);
         } catch (e) {

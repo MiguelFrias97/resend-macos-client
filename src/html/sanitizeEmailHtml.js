@@ -31,7 +31,7 @@ const SAFE_STYLES = {
 function contentSecurityPolicy(allowRemote) {
   const img = allowRemote ? 'cidcache: data: https:' : 'cidcache: data:';
   const font = allowRemote ? 'font-src data: https:' : 'font-src data:';
-  return `default-src 'none'; img-src ${img}; style-src 'unsafe-inline'; ${font}`;
+  return `default-src 'none'; script-src 'none'; img-src ${img}; style-src 'unsafe-inline'; ${font}`;
 }
 
 export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
