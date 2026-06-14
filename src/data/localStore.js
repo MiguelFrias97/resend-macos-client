@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS attachments (
   id TEXT PRIMARY KEY, message_id TEXT, filename TEXT, content_type TEXT, size INTEGER,
   content_id TEXT, disposition TEXT, download_url TEXT, local_path TEXT, downloaded INTEGER DEFAULT 0
 );
-CREATE TABLE IF NOT EXISTS outbox (id TEXT PRIMARY KEY, thread_id TEXT, payload TEXT, sent_message TEXT, status TEXT DEFAULT 'pending', resend_send_id TEXT, attempt_count INTEGER DEFAULT 0, last_error TEXT, created_at TEXT);`;
+CREATE TABLE IF NOT EXISTS outbox (id TEXT PRIMARY KEY, thread_id TEXT, payload TEXT, sent_message TEXT, status TEXT DEFAULT 'pending', resend_send_id TEXT, attempt_count INTEGER DEFAULT 0, last_error TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);`;
 
 async function runSchema(db) {
   for (const stmt of SCHEMA.split(';')) {
@@ -230,6 +231,18 @@ export async function createLocalStore(db) {
     );
   }
 
+  async function setSetting(key, value) {
+    await db.execute(
+      `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
+      [key, value],
+    );
+  }
+
+  async function getSetting(key) {
+    const res = await db.execute(`SELECT value FROM settings WHERE key=?`, [key]);
+    return res.rows[0] ? res.rows[0].value : null;
+  }
+
   return {
     upsertMessage,
     listInbox,
@@ -248,5 +261,7 @@ export async function createLocalStore(db) {
     setOutboxStatus,
     listPendingOutbox,
     insertSentMessage,
+    setSetting,
+    getSetting,
   };
 }

@@ -10,6 +10,7 @@ test('renders rows from the store', async () => {
       {id: 'm1', from: 'Marcus Lee <marcus@acme.com>', subject: 'Re: contract', receivedAt: '2026-06-12T14:14:00Z', seen: false, starred: false},
     ],
     searchMessages: async () => [],
+    getSetting: async () => null,
     upsertMessage: async () => {},
   };
   const makeStore = async () => store;
@@ -25,6 +26,7 @@ test('shows a sync error banner when the source throws', async () => {
   const store = {
     listMessages: async () => [],
     searchMessages: async () => [],
+    getSetting: async () => null,
     upsertMessage: async () => {},
   };
   const makeStore = async () => store;
@@ -47,6 +49,7 @@ test('selecting a message marks it read and loads its thread', async () => {
       {id: 'm1', threadId: 't1', from: 'Marcus Lee <marcus@acme.com>', subject: 'Re: contract', receivedAt: '2026-06-12T14:14:00Z', seen: false, starred: false},
     ],
     searchMessages: async () => [],
+    getSetting: async () => null,
     setSeen,
     listThread,
     upsertMessage: async () => {},
@@ -60,4 +63,23 @@ test('selecting a message marks it read and loads its thread', async () => {
   fireEvent.press(getByText('Re: contract'));
   await waitFor(() => expect(setSeen).toHaveBeenCalledWith('m1', true));
   expect(listThread).toHaveBeenCalledWith('t1');
+});
+
+test('the Compose button opens the compose sheet', async () => {
+  const store = {
+    listMessages: async () => [],
+    searchMessages: async () => [],
+    getSetting: async () => 'me@you.com',
+    upsertMessage: async () => {},
+  };
+  const makeStore = async () => store;
+  const makeSource = () => ({listReceived: async () => []});
+  const {getByText, queryByPlaceholderText, getByPlaceholderText} = render(
+    <InboxScreen apiKey="re_x" makeStore={makeStore} makeSource={makeSource} />,
+  );
+  await waitFor(() => expect(getByText('＋ Compose')).toBeTruthy());
+  expect(queryByPlaceholderText('To')).toBeNull();
+  fireEvent.press(getByText('＋ Compose'));
+  expect(getByPlaceholderText('To')).toBeTruthy();
+  expect(getByPlaceholderText('From').props.value).toBe('me@you.com');
 });

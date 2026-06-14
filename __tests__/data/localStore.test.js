@@ -4,9 +4,19 @@ function makeFakeDb() {
   const rows = [];
   const attachments = [];
   const outbox = [];
+  const settings = {};
   return {
     async execute(sql, params = []) {
       if (/^CREATE TABLE/i.test(sql)) return {rows: []};
+      if (/^INSERT INTO settings/i.test(sql)) {
+        const [key, value] = params;
+        settings[key] = value;
+        return {rows: [], rowsAffected: 1};
+      }
+      if (/^SELECT value FROM settings WHERE key=/i.test(sql)) {
+        const [key] = params;
+        return {rows: key in settings ? [{value: settings[key]}] : []};
+      }
       if (/^INSERT INTO outbox/i.test(sql)) {
         const [id, thread_id, payload, sent_message, created_at] = params;
         outbox.push({id, thread_id, payload, sent_message, status: 'pending', resend_send_id: null, attempt_count: 0, last_error: null, created_at});
@@ -132,6 +142,15 @@ function makeFakeDb() {
     },
   };
 }
+
+test('settings round-trip (from identity)', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  expect(await store.getSetting('fromIdentity')).toBe(null);
+  await store.setSetting('fromIdentity', 'me@you.com');
+  expect(await store.getSetting('fromIdentity')).toBe('me@you.com');
+  await store.setSetting('fromIdentity', 'other@you.com');
+  expect(await store.getSetting('fromIdentity')).toBe('other@you.com');
+});
 
 test('upsertMessage inserts then updates idempotently', async () => {
   const store = await createLocalStore(makeFakeDb());
