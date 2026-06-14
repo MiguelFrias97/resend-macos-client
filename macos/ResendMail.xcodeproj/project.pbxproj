@@ -8,12 +8,16 @@
 
 /* Begin PBXBuildFile section */
 		07E468DCA24CE5377DF903D9 /* RichEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA27C0D6DC12005F15D131C /* RichEditor.swift */; };
+		2CCAF75FB68D2CB39672A39D /* SystemAccent.m in Sources */ = {isa = PBXBuildFile; fileRef = 4C442B0778296110D8F044E8 /* SystemAccent.m */; };
+		4BF9604FF2C79144F5864428 /* Notifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5565F2C4C23E7EA6EE6D9B07 /* Notifications.swift */; };
 		5142014D2437B4B30078DB4F /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5142014C2437B4B30078DB4F /* AppDelegate.mm */; };
 		514201522437B4B40078DB4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 514201512437B4B40078DB4F /* Assets.xcassets */; };
 		514201552437B4B40078DB4F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 514201532437B4B40078DB4F /* Main.storyboard */; };
 		514201582437B4B40078DB4F /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 514201572437B4B40078DB4F /* main.m */; };
 		6BB992A651FEDFBFF1C54963 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0B3DA85B4C91557D6C766591 /* PrivacyInfo.xcprivacy */; };
 		77CD8020EE672B3790067CDE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0B3DA85B4C91557D6C766591 /* PrivacyInfo.xcprivacy */; };
+		7B220A3E382A3C84AFE9896D /* SystemAccent.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA54718274A4652B7FF37D33 /* SystemAccent.swift */; };
+		A547BC76914904628D1C109A /* Notifications.m in Sources */ = {isa = PBXBuildFile; fileRef = F515A3A18B604D858CAB3D36 /* Notifications.m */; };
 		A7AF7060912D4E5D3C34C3A9 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B1C5B74F99DB4457B99332 /* Keychain.swift */; };
 		AB4D112AEC4C5F24AE883137 /* AttachmentFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22C47278F2962FE3F7BC4324 /* AttachmentFile.swift */; };
 		AE12D1FCC406BD816CED8249 /* MessageBodyView.m in Sources */ = {isa = PBXBuildFile; fileRef = F5A1F62B355F8C9A43CB2081 /* MessageBodyView.m */; };
@@ -33,6 +37,7 @@
 		13B07F961A680F5B00A75B9A /* ResendMail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ResendMail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		22C47278F2962FE3F7BC4324 /* AttachmentFile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AttachmentFile.swift; sourceTree = "<group>"; };
 		48FC22CAE65ED8C8A35311F7 /* Pods-ResendMail-macOS.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ResendMail-macOS.release.xcconfig"; path = "Target Support Files/Pods-ResendMail-macOS/Pods-ResendMail-macOS.release.xcconfig"; sourceTree = "<group>"; };
+		4C442B0778296110D8F044E8 /* SystemAccent.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = SystemAccent.m; sourceTree = "<group>"; };
 		514201492437B4B30078DB4F /* ResendMail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ResendMail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5142014B2437B4B30078DB4F /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		5142014C2437B4B30078DB4F /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppDelegate.mm; sourceTree = "<group>"; };
@@ -41,6 +46,7 @@
 		514201562437B4B40078DB4F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		514201572437B4B40078DB4F /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		514201592437B4B40078DB4F /* ResendMail.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ResendMail.entitlements; sourceTree = "<group>"; };
+		5565F2C4C23E7EA6EE6D9B07 /* Notifications.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Notifications.swift; sourceTree = "<group>"; };
 		59B1C5B74F99DB4457B99332 /* Keychain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		5BF693B53A8DCF00FE7A7B71 /* MessageBodyView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MessageBodyView.swift; sourceTree = "<group>"; };
 		7E5EAE6945A9C645591FA057 /* Pods-ResendMail-macOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ResendMail-macOS.debug.xcconfig"; path = "Target Support Files/Pods-ResendMail-macOS/Pods-ResendMail-macOS.debug.xcconfig"; sourceTree = "<group>"; };
@@ -50,8 +56,10 @@
 		B4280574C7D58F532E5D5457 /* Keychain.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = Keychain.m; sourceTree = "<group>"; };
 		D4B3162CA5EF14226816424D /* RichEditorView.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = RichEditorView.m; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		F515A3A18B604D858CAB3D36 /* Notifications.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = Notifications.m; sourceTree = "<group>"; };
 		F5A1F62B355F8C9A43CB2081 /* MessageBodyView.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = MessageBodyView.m; sourceTree = "<group>"; };
 		F62C78B4439ED3FE59CB6AF2 /* libPods-ResendMail-macOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ResendMail-macOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FA54718274A4652B7FF37D33 /* SystemAccent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SystemAccent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +111,10 @@
 				D4B3162CA5EF14226816424D /* RichEditorView.m */,
 				8AA27C0D6DC12005F15D131C /* RichEditor.swift */,
 				07042C85F147ED344B550C0B /* RichEditor.m */,
+				FA54718274A4652B7FF37D33 /* SystemAccent.swift */,
+				4C442B0778296110D8F044E8 /* SystemAccent.m */,
+				5565F2C4C23E7EA6EE6D9B07 /* Notifications.swift */,
+				F515A3A18B604D858CAB3D36 /* Notifications.m */,
 			);
 			path = "ResendMail-macOS";
 			sourceTree = "<group>";
@@ -372,6 +384,10 @@
 				FFFB8BE8ED8869F14EAAE43C /* RichEditorView.m in Sources */,
 				07E468DCA24CE5377DF903D9 /* RichEditor.swift in Sources */,
 				CCA03DD1FEDB24AA02CF8231 /* RichEditor.m in Sources */,
+				7B220A3E382A3C84AFE9896D /* SystemAccent.swift in Sources */,
+				2CCAF75FB68D2CB39672A39D /* SystemAccent.m in Sources */,
+				4BF9604FF2C79144F5864428 /* Notifications.swift in Sources */,
+				A547BC76914904628D1C109A /* Notifications.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
