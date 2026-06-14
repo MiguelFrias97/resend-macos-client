@@ -1,7 +1,9 @@
 async function attemptSend({store, sender, item}) {
   await store.setOutboxStatus(item.id, 'sending');
   try {
-    const res = await sender.send(item.payload);
+    // The stable outbox id doubles as the idempotency key so a retry can't
+    // double-send if a prior attempt reached Resend but the response was lost.
+    const res = await sender.send(item.payload, {idempotencyKey: item.id});
     await store.setOutboxStatus(item.id, 'sent', {resendSendId: res.id});
     if (item.sentMessage) await store.insertSentMessage(item.sentMessage);
     return {ok: true, id: res.id};

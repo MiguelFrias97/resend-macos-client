@@ -1,6 +1,34 @@
 import {
   replySubject, extractEmail, replyHeaders, quoteOriginal, assembleReplyPayload,
+  replyPayloadError,
 } from '../../src/reply/assembleReply';
+
+test('extractEmail takes the first address from a comma list', () => {
+  expect(extractEmail('a@x, b@y')).toBe('a@x');
+  expect(extractEmail('A <a@x>, B <b@y>')).toBe('a@x');
+});
+
+test('quoteOriginal strips scripts and remote images from the quoted body', () => {
+  const q = quoteOriginal(
+    {from: 'A <a@x>', receivedAt: 'now'},
+    '<p>hi</p><script>evil()</script><img src="https://tracker/x.gif">',
+  );
+  expect(q).not.toMatch(/<script/i);
+  expect(q).not.toContain('tracker/x.gif');
+  expect(q).not.toMatch(/<img/i);
+  expect(q).toContain('<p>hi</p>');
+});
+
+test('quoteOriginal escapes the sender in the attribution', () => {
+  const q = quoteOriginal({from: 'Evil <a@x> <b>', receivedAt: 'now'}, '');
+  expect(q).toContain('&lt;b&gt;');
+});
+
+test('replyPayloadError flags a missing From or To', () => {
+  expect(replyPayloadError({from: '', to: 'b@y'})).toMatch(/from/i);
+  expect(replyPayloadError({from: 'a@x', to: ''})).toMatch(/recipient/i);
+  expect(replyPayloadError({from: 'a@x', to: 'b@y'})).toBe(null);
+});
 
 test('replySubject adds Re: once', () => {
   expect(replySubject('Hello')).toBe('Re: Hello');

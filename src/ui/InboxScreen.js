@@ -3,7 +3,6 @@ import {View, Text, Pressable} from 'react-native';
 import MessageList from './MessageList';
 import MessageBody from './MessageBody';
 import AttachmentTray from './AttachmentTray';
-import ComposeScratchScreen from './ComposeScratchScreen';
 import ReplyComposer from './ReplyComposer';
 import {createLocalStore} from '../data/localStore';
 import {openDb} from '../data/db';
@@ -11,6 +10,7 @@ import {createMailSource} from '../net/mailSource';
 import {createSender} from '../net/sender';
 import {startSyncLoop} from '../core/sync';
 import {sendReply, processOutbox} from '../core/outbox';
+import {replyPayloadError} from '../reply/assembleReply';
 import {
   sanitizeFilename,
   isDangerousFilename,
@@ -25,7 +25,6 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const [allowRemote, setAllowRemote] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [ready, setReady] = useState(false);
-  const [composing, setComposing] = useState(false);
   const [replying, setReplying] = useState(false);
   const [originalHtml, setOriginalHtml] = useState('');
   const servicesRef = useRef(null);
@@ -141,10 +140,20 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     setSelected(msg);
   };
 
-  // Open the inline reply, loading the original body to quote.
+  // Open the inline reply, loading the original body to quote. If the body
+  // hasn't been fetched/cached yet, fetch it now so the quote isn't empty.
   const startReply = async () => {
-    const {store} = servicesRef.current;
-    const msg = await store.getMessage(selected.id);
+    const {store, source} = servicesRef.current;
+    let msg = await store.getMessage(selected.id);
+    if (!msg || !msg.html) {
+      try {
+        const fetched = await source.getReceivedEmail(selected.id);
+        await store.saveBody(selected.id, {html: fetched.html, text: fetched.text});
+        msg = {...msg, html: fetched.html};
+      } catch (e) {
+        // Network issue — fall back to whatever we have (possibly an empty quote).
+      }
+    }
     setOriginalHtml((msg && msg.html) || '');
     setReplying(true);
   };
@@ -152,6 +161,10 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   // Send a reply: assemble was done in ReplyComposer; here we enqueue + send via
   // the outbox and record the sent message for a future thread view.
   const onSendReply = async payload => {
+    // Fail fast on an unsendable payload (e.g. no From/To) rather than queuing
+    // a doomed send that would retry forever.
+    const invalid = replyPayloadError(payload);
+    if (invalid) return {ok: false, error: new Error(invalid)};
     const {store, sender} = servicesRef.current;
     const id = `out_${Math.random().toString(36).slice(2)}`;
     const now = new Date().toISOString();
@@ -196,20 +209,6 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         <View
           style={{width: 320, borderRightWidth: 1, borderRightColor: '#e5e5e5'}}
         >
-          {/* TODO(M6): the scratch composer is a demo surface — replace with the
-              real reply/compose screen wired to the send pipeline. */}
-          <Pressable
-            onPress={() => setComposing(true)}
-            style={{
-              padding: 10,
-              borderBottomWidth: 1,
-              borderBottomColor: '#eee',
-            }}
-          >
-            <Text style={{color: '#3a6ea5', fontWeight: '600'}}>
-              ＋ Compose
-            </Text>
-          </Pressable>
           {error ? (
             <Text style={{padding: 12, color: '#b00'}}>
               Sync error: {error}
@@ -283,13 +282,6 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
           )}
         </View>
       </View>
-      {composing ? (
-        <View
-          style={{position: 'absolute', top: 0, left: 0, right: 0, bottom: 0}}
-        >
-          <ComposeScratchScreen onClose={() => setComposing(false)} />
-        </View>
-      ) : null}
     </View>
   );
 }

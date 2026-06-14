@@ -7,14 +7,20 @@ jest.mock('../../src/ui/Composer', () => {
     __esModule: true,
     default: ({onChange}) =>
       React.createElement('MockComposer', {
-        onPressEmit: () => onChange({html: '<p>hello</p>', inlineImages: []}),
+        onPressEmit: () =>
+          onChange({
+            html: '<p>hello</p>',
+            inlineImages: [
+              {contentId: 'img_1', filename: 'p.png', contentType: 'image/png', base64: 'AAAA'},
+            ],
+          }),
       }),
   };
 });
 
 import ReplyComposer from '../../src/ui/ReplyComposer';
 
-test('Send builds a reply payload and calls onSend, showing Sent', async () => {
+test('Send builds a reply payload (incl. inline images) and shows Sent', async () => {
   const onSend = jest.fn(async () => ({ok: true}));
   const original = {from: 'A <a@x>', to: ['hi@you.com'], subject: 'Hi', rfcMessageId: '<m@x>', references: [], receivedAt: 'now'};
   const {getByText, UNSAFE_getByType} = render(
@@ -27,6 +33,9 @@ test('Send builds a reply payload and calls onSend, showing Sent', async () => {
   expect(payload.subject).toBe('Re: Hi');
   expect(payload.html).toContain('hello');
   expect(payload.html).toContain('gmail_quote');
+  expect(payload.attachments).toEqual([
+    {filename: 'p.png', content: 'AAAA', content_type: 'image/png', content_id: 'img_1'},
+  ]);
   await waitFor(() => expect(getByText('Sent')).toBeTruthy());
 });
 

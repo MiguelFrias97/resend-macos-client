@@ -8,8 +8,8 @@ function makeFakeDb() {
     async execute(sql, params = []) {
       if (/^CREATE TABLE/i.test(sql)) return {rows: []};
       if (/^INSERT INTO outbox/i.test(sql)) {
-        const [id, thread_id, payload, created_at] = params;
-        outbox.push({id, thread_id, payload, status: 'pending', resend_send_id: null, attempt_count: 0, last_error: null, created_at});
+        const [id, thread_id, payload, sent_message, created_at] = params;
+        outbox.push({id, thread_id, payload, sent_message, status: 'pending', resend_send_id: null, attempt_count: 0, last_error: null, created_at});
         return {rows: [], rowsAffected: 1};
       }
       if (/^UPDATE outbox SET status=/i.test(sql)) {
@@ -25,7 +25,7 @@ function makeFakeDb() {
       }
       if (/FROM outbox WHERE status IN/i.test(sql)) {
         const pending = outbox
-          .filter(o => o.status === 'pending' || o.status === 'failed')
+          .filter(o => ['pending', 'failed', 'sending'].includes(o.status))
           .sort((a, b) => (String(a.created_at) < String(b.created_at) ? -1 : 1));
         return {rows: pending};
       }
@@ -124,6 +124,18 @@ test('outbox enqueue/list/status round-trip', async () => {
   await store.setOutboxStatus('o1', 'sent', {resendSendId: 'eml_1'});
   pending = await store.listPendingOutbox();
   expect(pending).toHaveLength(0);
+});
+
+test('outbox persists the sentMessage so a retry can still record it', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.enqueueOutbox({
+    id: 'o1',
+    threadId: 't1',
+    payload: {to: 'b@y', subject: 'Re: hi'},
+    sentMessage: {id: 's1', threadId: 't1', from: 'me', subject: 'Re: hi', receivedAt: 'now'},
+  });
+  const [item] = await store.listPendingOutbox();
+  expect(item.sentMessage).toEqual({id: 's1', threadId: 't1', from: 'me', subject: 'Re: hi', receivedAt: 'now'});
 });
 
 test('listInbox excludes sent messages', async () => {

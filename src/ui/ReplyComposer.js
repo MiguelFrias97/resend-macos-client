@@ -6,6 +6,7 @@ import {assembleReplyPayload} from '../reply/assembleReply';
 export default function ReplyComposer({original, originalHtml, onSend}) {
   const contentRef = useRef({html: '', inlineImages: []});
   const [status, setStatus] = useState('idle');
+  const [errorText, setErrorText] = useState('');
 
   const handleChange = next => {
     contentRef.current = next;
@@ -13,6 +14,7 @@ export default function ReplyComposer({original, originalHtml, onSend}) {
 
   const send = async () => {
     setStatus('sending');
+    setErrorText('');
     const content = contentRef.current;
     const payload = assembleReplyPayload({
       original,
@@ -22,8 +24,14 @@ export default function ReplyComposer({original, originalHtml, onSend}) {
     });
     try {
       const res = await onSend(payload);
-      setStatus(res && res.ok === false ? 'failed' : 'sent');
+      if (res && res.ok === false) {
+        setErrorText((res.error && res.error.message) || String(res.error || ''));
+        setStatus('failed');
+      } else {
+        setStatus('sent');
+      }
     } catch (e) {
+      setErrorText(e.message || '');
       setStatus('failed');
     }
   };
@@ -52,7 +60,9 @@ export default function ReplyComposer({original, originalHtml, onSend}) {
         ) : null}
         {status === 'failed' ? (
           <Pressable onPress={send} style={{marginLeft: 12}}>
-            <Text style={{color: '#b00'}}>Failed — Retry</Text>
+            <Text style={{color: '#b00'}}>
+              {errorText ? `${errorText} — Retry` : 'Failed — Retry'}
+            </Text>
           </Pressable>
         ) : null}
       </View>

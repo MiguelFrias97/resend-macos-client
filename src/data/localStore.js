@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS attachments (
   id TEXT PRIMARY KEY, message_id TEXT, filename TEXT, content_type TEXT, size INTEGER,
   content_id TEXT, disposition TEXT, download_url TEXT, local_path TEXT, downloaded INTEGER DEFAULT 0
 );
-CREATE TABLE IF NOT EXISTS outbox (id TEXT PRIMARY KEY, thread_id TEXT, payload TEXT, status TEXT DEFAULT 'pending', resend_send_id TEXT, attempt_count INTEGER DEFAULT 0, last_error TEXT, created_at TEXT);`;
+CREATE TABLE IF NOT EXISTS outbox (id TEXT PRIMARY KEY, thread_id TEXT, payload TEXT, sent_message TEXT, status TEXT DEFAULT 'pending', resend_send_id TEXT, attempt_count INTEGER DEFAULT 0, last_error TEXT, created_at TEXT);`;
 
 async function runSchema(db) {
   for (const stmt of SCHEMA.split(';')) {
@@ -137,8 +137,14 @@ export async function createLocalStore(db) {
 
   async function enqueueOutbox(item) {
     await db.execute(
-      `INSERT INTO outbox (id, thread_id, payload, status, created_at) VALUES (?, ?, ?, 'pending', ?)`,
-      [item.id, item.threadId ?? null, JSON.stringify(item.payload), item.createdAt ?? null],
+      `INSERT INTO outbox (id, thread_id, payload, sent_message, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)`,
+      [
+        item.id,
+        item.threadId ?? null,
+        JSON.stringify(item.payload),
+        item.sentMessage ? JSON.stringify(item.sentMessage) : null,
+        item.createdAt ?? null,
+      ],
     );
   }
 
@@ -150,13 +156,16 @@ export async function createLocalStore(db) {
   }
 
   async function listPendingOutbox() {
+    // 'sending' is included so a row orphaned by a crash/quit mid-send is
+    // retried; the idempotency key makes re-sending an in-flight item safe.
     const res = await db.execute(
-      `SELECT id, thread_id, payload, status, attempt_count FROM outbox WHERE status IN ('pending','failed') ORDER BY created_at ASC`,
+      `SELECT id, thread_id, payload, sent_message, status, attempt_count FROM outbox WHERE status IN ('pending','failed','sending') ORDER BY created_at ASC`,
     );
     return res.rows.map(r => ({
       id: r.id,
       threadId: r.thread_id,
       payload: JSON.parse(r.payload),
+      sentMessage: r.sent_message ? JSON.parse(r.sent_message) : null,
       status: r.status,
       attemptCount: r.attempt_count,
     }));
