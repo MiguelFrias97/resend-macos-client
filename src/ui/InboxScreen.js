@@ -151,6 +151,8 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         <View
           style={{width: 320, borderRightWidth: 1, borderRightColor: '#e5e5e5'}}
         >
+          {/* TODO(M6): the scratch composer is a demo surface — replace with the
+              real reply/compose screen wired to the send pipeline. */}
           <Pressable
             onPress={() => setComposing(true)}
             style={{

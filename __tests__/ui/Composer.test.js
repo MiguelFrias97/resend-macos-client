@@ -17,10 +17,25 @@ jest.mock('../../src/native/RichEditorView', () => ({
 import Composer from '../../src/ui/Composer';
 import {commands} from '../../src/native/RichEditorView';
 
-test('tapping Bold dispatches the bold command', () => {
+test('each toolbar button dispatches its command', () => {
   const {getByLabelText} = render(<Composer onChange={() => {}} />);
   fireEvent.press(getByLabelText('Bold'));
+  fireEvent.press(getByLabelText('Italic'));
+  fireEvent.press(getByLabelText('Underline'));
+  fireEvent.press(getByLabelText('Bulleted list'));
+  fireEvent.press(getByLabelText('Numbered list'));
   expect(commands.bold).toHaveBeenCalled();
+  expect(commands.italic).toHaveBeenCalled();
+  expect(commands.underline).toHaveBeenCalled();
+  expect(commands.bulletList).toHaveBeenCalled();
+  expect(commands.numberList).toHaveBeenCalled();
+});
+
+test('a malformed change event degrades to empty html', () => {
+  const onChange = jest.fn();
+  const {UNSAFE_getByType} = render(<Composer onChange={onChange} />);
+  UNSAFE_getByType('RichEditorView').props.onChange({});
+  expect(onChange).toHaveBeenCalledWith({html: '', inlineImages: []});
 });
 
 test('native onChange surfaces email html + inline images', () => {

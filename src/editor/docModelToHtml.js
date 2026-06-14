@@ -47,5 +47,5 @@ function blockToHtml(block) {
 
 export function docModelToHtml(model) {
   if (!model || !Array.isArray(model.blocks)) return '';
-  return model.blocks.map(blockToHtml).join('');
+  return model.blocks.map(b => (b ? blockToHtml(b) : '')).join('');
 }

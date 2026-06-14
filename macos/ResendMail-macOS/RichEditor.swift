@@ -18,9 +18,19 @@ class RichEditor: NSObject {
 
   private func toggleFontTrait(_ trait: NSFontTraitMask) {
     withEditor { tv, range in
-      guard range.length > 0, let storage = tv.textStorage else { return }
       let fm = NSFontManager.shared
-      // Decide direction from the first character's current trait.
+      // No selection: toggle the typing attributes so the next typed run uses it
+      // (matches every standard editor's toggle-then-type behavior).
+      if range.length == 0 {
+        let current = (tv.typingAttributes[.font] as? NSFont)
+          ?? tv.font ?? NSFont.systemFont(ofSize: 14)
+        let has = fm.traits(of: current).contains(trait)
+        tv.typingAttributes[.font] = has
+          ? fm.convert(current, toNotHaveTrait: trait)
+          : fm.convert(current, toHaveTrait: trait)
+        return
+      }
+      guard let storage = tv.textStorage else { return }
       let firstFont = (storage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont)
         ?? NSFont.systemFont(ofSize: 14)
       let has = fm.traits(of: firstFont).contains(trait)
@@ -40,8 +50,14 @@ class RichEditor: NSObject {
 
   @objc func toggleUnderline() {
     withEditor { tv, range in
-      guard range.length > 0, let storage = tv.textStorage else { return }
-      let current = (storage.attribute(.underlineStyle, at: range.location, effectiveRange: nil) as? Int) ?? 0
+      if range.length == 0 {
+        let current = (tv.typingAttributes[.underlineStyle] as? NSNumber)?.intValue ?? 0
+        tv.typingAttributes[.underlineStyle] =
+          current == 0 ? NSUnderlineStyle.single.rawValue : 0
+        return
+      }
+      guard let storage = tv.textStorage else { return }
+      let current = (storage.attribute(.underlineStyle, at: range.location, effectiveRange: nil) as? NSNumber)?.intValue ?? 0
       let next = current == 0 ? NSUnderlineStyle.single.rawValue : 0
       storage.addAttribute(.underlineStyle, value: next, range: range)
       tv.didChangeText()

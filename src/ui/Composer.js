@@ -21,7 +21,7 @@ function ToolbarButton({label, onPress, children}) {
 // editor's document model (consumed by the reply/send pipeline in M6).
 export default function Composer({onChange}) {
   const handleNativeChange = e => {
-    const model = e.nativeEvent.model;
+    const model = e && e.nativeEvent ? e.nativeEvent.model : null;
     if (onChange) {
       onChange({
         html: docModelToHtml(model),

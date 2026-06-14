@@ -1,5 +1,13 @@
 import {docModelToHtml} from '../../src/editor/docModelToHtml';
 
+test('handles empty / unknown / null blocks without throwing', () => {
+  expect(docModelToHtml({blocks: [{type: 'paragraph', spans: []}]})).toBe('<p></p>');
+  expect(docModelToHtml({blocks: [{type: 'divider'}]})).toBe('');
+  expect(docModelToHtml({blocks: [null, {type: 'paragraph', spans: [{text: 'a'}]}]})).toBe('<p>a</p>');
+  expect(docModelToHtml({})).toBe('');
+  expect(docModelToHtml(null)).toBe('');
+});
+
 test('renders bold/italic/underline spans', () => {
   const html = docModelToHtml({
     blocks: [

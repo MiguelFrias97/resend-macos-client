@@ -26,6 +26,10 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
   let textView: NSTextView
   private let scrollView: NSScrollView
 
+  // Caches each inline image's base64 so we don't re-encode the full image on
+  // every keystroke (textDidChange re-serializes the whole document).
+  private var imageCache: [ObjectIdentifier: String] = [:]
+
   @objc var onChange: RCTBubblingEventBlock?
 
   override init(frame frameRect: NSRect) {
@@ -110,19 +114,28 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
 
     let fullRange = NSRange(location: 0, length: storage.length)
     storage.enumerateAttributes(in: fullRange, options: []) { attrs, range, _ in
-      // Image attachment -> its own image block.
-      if let attachment = attrs[.attachment] as? NSTextAttachment,
-         let data = self.imageData(from: attachment) {
-        flushParagraph()
-        flushList()
-        imageCounter += 1
-        blocks.append([
-          "type": "image",
-          "contentId": "img_\(imageCounter)",
-          "filename": "image\(imageCounter).png",
-          "contentType": "image/png",
-          "base64": data.base64EncodedString(),
-        ])
+      // Image attachment -> its own image block. NOTE (v1 limitation): an inline
+      // image splits its surrounding paragraph into separate blocks; images on
+      // their own line serialize cleanly.
+      if let attachment = attrs[.attachment] as? NSTextAttachment {
+        let key = ObjectIdentifier(attachment)
+        var base64 = self.imageCache[key]
+        if base64 == nil, let data = self.imageData(from: attachment) {
+          base64 = data.base64EncodedString()
+          self.imageCache[key] = base64
+        }
+        if let base64 = base64 {
+          flushParagraph()
+          flushList()
+          imageCounter += 1
+          blocks.append([
+            "type": "image",
+            "contentId": "img_\(imageCounter)",
+            "filename": "image\(imageCounter).png",
+            "contentType": "image/png",
+            "base64": base64,
+          ])
+        }
         return
       }
 
@@ -165,7 +178,7 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
       if traits.contains(.boldFontMask) { span["bold"] = true }
       if traits.contains(.italicFontMask) { span["italic"] = true }
     }
-    if let underline = attrs[.underlineStyle] as? Int, underline != 0 {
+    if let underline = (attrs[.underlineStyle] as? NSNumber)?.intValue, underline != 0 {
       span["underline"] = true
     }
     if let link = attrs[.link] {
