@@ -158,7 +158,17 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     const {store, source} = servicesRef.current;
     return {
       getMessage: id => store.getMessage(id),
-      fetchBody: id => source.getReceivedEmail(id),
+      fetchBody: async id => {
+        const content = await source.getReceivedEmail(id);
+        // The retrieved headers expose In-Reply-To/References (the list endpoint
+        // doesn't), so re-thread this message into its parent's conversation.
+        try {
+          await store.rethreadByHeaders(id, content.inReplyTo, content.references);
+        } catch (e) {
+          // best-effort threading; never block rendering the body
+        }
+        return content;
+      },
       saveBody: (id, b) => store.saveBody(id, b),
       saveAttachments: (id, a) => store.saveAttachments(id, a),
       cacheCidImages: async id => {
@@ -237,6 +247,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
         if (fetched.attachments && fetched.attachments.length) {
           await store.saveAttachments(id, fetched.attachments);
         }
+        store.rethreadByHeaders(id, fetched.inReplyTo, fetched.references).catch(() => {});
         msg = {...msg, html: fetched.html};
       } catch (e) {
         // Network issue — fall back to whatever we have.

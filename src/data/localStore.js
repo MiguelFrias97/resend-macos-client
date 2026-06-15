@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS messages (
   html TEXT,
   text TEXT,
   body_fetched INTEGER DEFAULT 0,
-  direction TEXT DEFAULT 'received'
+  direction TEXT DEFAULT 'received',
+  rfc_message_id TEXT
 );
 CREATE TABLE IF NOT EXISTS attachments (
   id TEXT PRIMARY KEY, message_id TEXT, filename TEXT, content_type TEXT, size INTEGER,
@@ -57,15 +58,33 @@ export async function createLocalStore(db) {
 
   async function upsertMessage(m) {
     await db.execute(
-      `INSERT INTO messages (id, thread_id, sender, subject, received_at)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO messages (id, thread_id, sender, subject, received_at, rfc_message_id)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          thread_id=excluded.thread_id,
          sender=excluded.sender,
          subject=excluded.subject,
-         received_at=excluded.received_at`,
-      [m.id, m.threadId, m.from, m.subject, m.receivedAt],
+         received_at=excluded.received_at,
+         rfc_message_id=excluded.rfc_message_id`,
+      [m.id, m.threadId, m.from, m.subject, m.receivedAt, m.rfcMessageId ?? null],
     );
+  }
+
+  // Group a message into its parent's thread by RFC Message-ID, using the
+  // In-Reply-To / References headers (only available once the body is retrieved,
+  // since the list endpoint omits them). Returns the adopted thread id or null.
+  async function rethreadByHeaders(messageId, inReplyTo, references) {
+    const refs = [inReplyTo, ...(references || [])].filter(Boolean);
+    if (!refs.length) return null;
+    const placeholders = refs.map(() => '?').join(',');
+    const res = await db.execute(
+      `SELECT thread_id FROM messages WHERE rfc_message_id IN (${placeholders}) AND id != ? LIMIT 1`,
+      [...refs, messageId],
+    );
+    const parentThread = res.rows[0] ? res.rows[0].thread_id : null;
+    if (!parentThread) return null;
+    await db.execute(`UPDATE messages SET thread_id=? WHERE id=?`, [parentThread, messageId]);
+    return parentThread;
   }
 
   async function listMessages(filter = 'inbox') {
@@ -246,6 +265,7 @@ export async function createLocalStore(db) {
 
   return {
     upsertMessage,
+    rethreadByHeaders,
     listInbox,
     listMessages,
     searchMessages,

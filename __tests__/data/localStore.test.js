@@ -47,11 +47,23 @@ function makeFakeDb() {
         return {rows: [], rowsAffected: 1};
       }
       if (/^INSERT INTO messages/i.test(sql)) {
-        const [id, thread_id, sender, subject, received_at] = params;
+        const [id, thread_id, sender, subject, received_at, rfc_message_id] = params;
         const existing = rows.find(r => r.id === id);
-        if (existing) Object.assign(existing, {thread_id, sender, subject, received_at});
-        else rows.push({id, thread_id, sender, subject, received_at, seen: 0, starred: 0, archived: 0, html: null, text: null, body_fetched: 0, direction: 'received'});
+        if (existing) Object.assign(existing, {thread_id, sender, subject, received_at, rfc_message_id});
+        else rows.push({id, thread_id, sender, subject, received_at, rfc_message_id, seen: 0, starred: 0, archived: 0, html: null, text: null, body_fetched: 0, direction: 'received'});
         return {rows: [], rowsAffected: 1};
+      }
+      if (/SELECT thread_id FROM messages WHERE rfc_message_id IN/i.test(sql)) {
+        const ids = params.slice(0, -1);
+        const selfId = params[params.length - 1];
+        const match = rows.find(r => ids.includes(r.rfc_message_id) && r.id !== selfId);
+        return {rows: match ? [{thread_id: match.thread_id}] : []};
+      }
+      if (/^UPDATE messages SET thread_id=/i.test(sql)) {
+        const [thread_id, id] = params;
+        const existing = rows.find(r => r.id === id);
+        if (existing) existing.thread_id = thread_id;
+        return {rows: [], rowsAffected: existing ? 1 : 0};
       }
       if (/^UPDATE messages SET html=/i.test(sql)) {
         const [html, text, id] = params;
@@ -145,6 +157,18 @@ function makeFakeDb() {
     },
   };
 }
+
+test('rethreadByHeaders moves a message into its parent thread by Message-ID', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.upsertMessage({id: 'root', threadId: 'tA', from: 'A', subject: 'Deal', receivedAt: '2026-06-12T10:00:00Z', rfcMessageId: '<root@x>'});
+  await store.upsertMessage({id: 'reply', threadId: 'tB', from: 'B', subject: 'totally different subject', receivedAt: '2026-06-12T11:00:00Z', rfcMessageId: '<reply@y>'});
+  // reply's headers say it replies to <root@x>
+  const adopted = await store.rethreadByHeaders('reply', '<root@x>', []);
+  expect(adopted).toBe('tA');
+  expect((await store.listThread('tA')).map(m => m.id)).toEqual(['root', 'reply']);
+  // no match → null, no change
+  expect(await store.rethreadByHeaders('reply', '<unknown@z>', [])).toBe(null);
+});
 
 test("listMessages('sent') returns sent messages", async () => {
   const store = await createLocalStore(makeFakeDb());
