@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {View, Text, TextInput, Pressable} from 'react-native';
 import Composer from './Composer';
+import RecipientField from './RecipientField';
 import {useTheme} from './useTheme';
 import {
   assembleComposePayload,
@@ -17,7 +18,10 @@ export default function ComposeSheet({
   onChangeFrom,
 }) {
   const theme = useTheme();
-  const [to, setTo] = useState('');
+  const [to, setTo] = useState([]);
+  const [cc, setCc] = useState([]);
+  const [bcc, setBcc] = useState([]);
+  const [showCcBcc, setShowCcBcc] = useState(false);
   const [from, setFrom] = useState(defaultFrom);
   const [subject, setSubject] = useState(
     mode === 'forward' && forward && forward.original
@@ -61,6 +65,8 @@ export default function ComposeSheet({
         : assembleComposePayload({
             from,
             to,
+            cc,
+            bcc,
             subject,
             html: content.html,
             inlineImages: content.inlineImages,
@@ -97,14 +103,25 @@ export default function ComposeSheet({
           <Text style={{color: theme.accent}}>Close</Text>
         </Pressable>
       </View>
-      <TextInput
-        placeholder="To"
-        placeholderTextColor={theme.textMuted}
-        value={to}
-        onChangeText={setTo}
-        autoCapitalize="none"
-        style={fieldStyle}
-      />
+      <View style={{flexDirection: 'row', alignItems: 'center'}}>
+        <View style={{flex: 1}}>
+          <RecipientField label="To" placeholder="To" value={to} onChange={setTo} />
+        </View>
+        {mode !== 'forward' ? (
+          <Pressable
+            onPress={() => setShowCcBcc(v => !v)}
+            style={{paddingHorizontal: 10}}
+          >
+            <Text style={{color: theme.accent}}>Cc/Bcc</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {showCcBcc ? (
+        <>
+          <RecipientField label="Cc" placeholder="Cc" value={cc} onChange={setCc} />
+          <RecipientField label="Bcc" placeholder="Bcc" value={bcc} onChange={setBcc} />
+        </>
+      ) : null}
       <TextInput
         placeholder="From"
         placeholderTextColor={theme.textMuted}
