@@ -5,6 +5,25 @@ import {setApiKey} from '../native/Keychain';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, ELEV, TYPE} from './designTokens';
 
+// Turn a verify() failure into a message that points at the actual cause rather
+// than always blaming the key.
+function verifyErrorMessage(status, reason) {
+  const tail = reason ? ` — ${reason}` : '';
+  if (status === 401 || status === 403) {
+    return 'That key was rejected by Resend. Make sure it has access to inbound (received) email.';
+  }
+  if (status === 404) {
+    return 'Resend has no inbound mailbox for this account (404). Enable Receiving/Inbound on your domain first.';
+  }
+  if (status === 422) {
+    return `Resend rejected the request (422)${tail}.`;
+  }
+  if (status === 0) {
+    return `Couldn't reach Resend — check your connection${tail}.`;
+  }
+  return `Resend returned HTTP ${status}${tail}.`;
+}
+
 export default function Onboarding({onComplete, deps = {}}) {
   const theme = useTheme();
   const verify = deps.verify || verifyApiKey;
@@ -17,9 +36,13 @@ export default function Onboarding({onComplete, deps = {}}) {
   async function connect() {
     setBusy(true);
     setError(null);
-    const ok = await verify(key);
+    // verify() returns either a boolean (legacy / test mock) or {ok, status, reason}.
+    const result = await verify(key);
+    const ok = result === true || (result && result.ok);
     if (!ok) {
-      setError('That key was rejected by Resend.');
+      const status = (result && result.status) || 0;
+      const reason = (result && result.reason) || '';
+      setError(verifyErrorMessage(status, reason));
       setBusy(false);
       return;
     }
