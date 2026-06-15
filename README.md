@@ -87,6 +87,13 @@ npx eslint .                   # lint
 xcodebuild -workspace macos/ResendMail.xcworkspace -scheme ResendMail-macOS -configuration Debug build
 ```
 
+## CI
+
+`.github/workflows/ci.yml` runs ESLint + Jest on every push/PR; a best-effort
+macOS build job also runs (informational — runners may lag the project's Xcode).
+Builds are local for now (`npm run macos`); a signed/notarized release path is a
+deferred follow-up.
+
 ## API reconciliation
 
 The Resend received-email / attachment responses use **snake_case** (`message_id`, `created_at`,

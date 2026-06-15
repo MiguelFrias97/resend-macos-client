@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Fast, reliable gate: lint + unit tests on Linux (no native toolchain needed).
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test -- --ci
+
+# Note: no native macOS build job. react-native-macos requires Xcode >= 16.1
+# (the project itself targets 26.x for the fmt/consteval Podfile patch), and
+# GitHub's hosted macOS runners ship an older Xcode, so `pod install` fails
+# before any build. Native builds are run locally (`npm run macos`).
