@@ -27,3 +27,14 @@ test('commits the remaining text on blur', () => {
   fireEvent(getByPlaceholderText('To'), 'blur');
   expect(onChange).toHaveBeenCalledWith(['bob@y.com']);
 });
+
+test('does not commit an in-progress trailing token after a separator', () => {
+  const onChange = jest.fn();
+  const {getByPlaceholderText} = render(
+    <RecipientField label="To" placeholder="To" value={[]} onChange={onChange} />,
+  );
+  // typing 'a@x.com,b' commits only the completed 'a@x.com'; 'b' stays in the field
+  fireEvent.changeText(getByPlaceholderText('To'), 'a@x.com,b');
+  expect(onChange).toHaveBeenCalledWith(['a@x.com']);
+  expect(getByPlaceholderText('To').props.value).toBe('b');
+});

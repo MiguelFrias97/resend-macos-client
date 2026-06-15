@@ -83,7 +83,15 @@ export async function createLocalStore(db) {
     );
     const parentThread = res.rows[0] ? res.rows[0].thread_id : null;
     if (!parentThread) return null;
-    await db.execute(`UPDATE messages SET thread_id=? WHERE id=?`, [parentThread, messageId]);
+    const cur = await db.execute(`SELECT thread_id FROM messages WHERE id=?`, [messageId]);
+    const oldThread = cur.rows[0] ? cur.rows[0].thread_id : null;
+    if (oldThread && oldThread !== parentThread) {
+      // Merge this message's WHOLE current thread into the parent's, so any
+      // replies already grouped under it come along (no orphaned split thread).
+      await db.execute(`UPDATE messages SET thread_id=? WHERE thread_id=?`, [parentThread, oldThread]);
+    } else {
+      await db.execute(`UPDATE messages SET thread_id=? WHERE id=?`, [parentThread, messageId]);
+    }
     return parentThread;
   }
 

@@ -59,6 +59,17 @@ function makeFakeDb() {
         const match = rows.find(r => ids.includes(r.rfc_message_id) && r.id !== selfId);
         return {rows: match ? [{thread_id: match.thread_id}] : []};
       }
+      if (/^UPDATE messages SET thread_id=\? WHERE thread_id=/i.test(sql)) {
+        const [newThread, oldThread] = params;
+        let n = 0;
+        rows.forEach(r => {
+          if (r.thread_id === oldThread) {
+            r.thread_id = newThread;
+            n += 1;
+          }
+        });
+        return {rows: [], rowsAffected: n};
+      }
       if (/^UPDATE messages SET thread_id=/i.test(sql)) {
         const [thread_id, id] = params;
         const existing = rows.find(r => r.id === id);
@@ -168,6 +179,17 @@ test('rethreadByHeaders moves a message into its parent thread by Message-ID', a
   expect((await store.listThread('tA')).map(m => m.id)).toEqual(['root', 'reply']);
   // no match → null, no change
   expect(await store.rethreadByHeaders('reply', '<unknown@z>', [])).toBe(null);
+});
+
+test('rethreadByHeaders merges the whole thread so children are not orphaned', async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.upsertMessage({id: 'root', threadId: 'tA', from: 'A', subject: 'Deal', receivedAt: '2026-06-12T10:00:00Z', rfcMessageId: '<root@x>'});
+  // B and C were grouped together (tB) by the subject heuristic before headers arrived.
+  await store.upsertMessage({id: 'B', threadId: 'tB', from: 'B', subject: 'Re: Deal', receivedAt: '2026-06-12T11:00:00Z', rfcMessageId: '<b@y>'});
+  await store.upsertMessage({id: 'C', threadId: 'tB', from: 'C', subject: 'Re: Deal', receivedAt: '2026-06-12T12:00:00Z', rfcMessageId: '<c@z>'});
+  // Opening B reveals it replies to root → merge tB into tA, bringing C along.
+  await store.rethreadByHeaders('B', '<root@x>', []);
+  expect((await store.listThread('tA')).map(m => m.id)).toEqual(['root', 'B', 'C']);
 });
 
 test("listMessages('sent') returns sent messages", async () => {

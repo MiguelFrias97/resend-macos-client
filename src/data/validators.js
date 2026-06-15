@@ -55,6 +55,11 @@ function header(headers, name) {
   return null;
 }
 
+// In-Reply-To is a single Message-ID; coerce an array form to its first entry.
+function firstHeaderValue(v) {
+  return Array.isArray(v) ? v[0] || null : v || null;
+}
+
 export function validateReceivedEmailContent(raw) {
   const id = req(raw, 'id');
   const attachments = Array.isArray(raw.attachments)
@@ -68,7 +73,7 @@ export function validateReceivedEmailContent(raw) {
     headers,
     // The reply headers live here (the list endpoint omits them) — used to
     // group a thread by RFC Message-ID once a body is retrieved.
-    inReplyTo: header(headers, 'in-reply-to') || raw.in_reply_to || null,
+    inReplyTo: firstHeaderValue(header(headers, 'in-reply-to') || raw.in_reply_to),
     references: toRefArray(header(headers, 'references') || raw.references),
     attachments,
   };

@@ -1,6 +1,13 @@
 import {
-  parseRecipients, forwardSubject, assembleComposePayload, assembleForwardPayload,
+  parseRecipients, forwardSubject, assembleComposePayload, assembleForwardPayload, isEmail,
 } from '../../src/compose/assembleCompose';
+
+test('isEmail validates basic address shape', () => {
+  expect(isEmail('a@x.com')).toBe(true);
+  expect(isEmail('Name <a@x.com>')).toBe(false); // expects a bare address
+  expect(isEmail('bob')).toBe(false);
+  expect(isEmail('')).toBe(false);
+});
 
 test('parseRecipients splits and unwraps addresses', () => {
   expect(parseRecipients('a@x')).toEqual(['a@x']);
