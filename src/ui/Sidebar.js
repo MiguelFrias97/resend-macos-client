@@ -1,6 +1,7 @@
 import React from 'react';
 import {View, Text, Pressable} from 'react-native';
 import {useTheme} from './useTheme';
+import {SP, RADIUS} from './designTokens';
 
 const FILTERS = [
   {key: 'inbox', label: 'Inbox'},
@@ -13,23 +14,28 @@ const FILTERS = [
 export default function Sidebar({selected, onSelect}) {
   const theme = useTheme();
   return (
-    <View style={{width: 160, paddingVertical: 8, backgroundColor: theme.panel}}>
+    <View style={{width: 160, paddingVertical: SP(2)}}>
       {FILTERS.map(f => (
         <Pressable
           key={f.key}
           onPress={() => onSelect(f.key)}
           style={{
-            paddingVertical: 6,
-            paddingHorizontal: 12,
-            marginHorizontal: 6,
-            borderRadius: 6,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: SP(2.25),
+            height: 28,
+            paddingHorizontal: SP(2),
+            marginHorizontal: SP(2),
+            borderRadius: RADIUS.sm,
             backgroundColor:
               selected === f.key ? theme.selectedBg : 'transparent',
           }}>
           <Text
             style={{
-              color: selected === f.key ? theme.accent : theme.text,
-              fontWeight: selected === f.key ? '600' : '400',
+              fontSize: 13,
+              fontWeight: selected === f.key ? '500' : '400',
+              color: selected === f.key ? theme.selectedText : theme.text,
+              flex: 1,
             }}>
             {f.label}
           </Text>

@@ -10,6 +10,7 @@ import ComposeSheet from './ComposeSheet';
 import SettingsScreen from './SettingsScreen';
 import EmptyState from './EmptyState';
 import {useTheme} from './useTheme';
+import {SP, RADIUS, TYPE} from './designTokens';
 import {setOverride} from './themeOverride';
 import {notify} from '../native/Notifications';
 import {createLocalStore} from '../data/localStore';
@@ -443,29 +444,30 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
           backgroundColor: theme.bg,
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 24,
+          gap: SP(2),
+          padding: SP(8),
         }}
       >
-        <Text
-          style={{color: theme.text, fontSize: 16, fontWeight: '600', marginBottom: 8}}
-        >
+        <Text style={{...TYPE.title, color: theme.text}}>
           Can't open your mailbox cache
         </Text>
         <Text
-          style={{color: theme.textMuted, textAlign: 'center', marginBottom: 16}}
+          style={{...TYPE.body, color: theme.textMuted, textAlign: 'center'}}
         >
           {initError}
         </Text>
         <Pressable
           onPress={retryInit}
           style={{
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            borderRadius: 6,
+            paddingHorizontal: SP(4),
+            height: 32,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: RADIUS.sm,
             backgroundColor: theme.accent,
           }}
         >
-          <Text style={{color: '#fff', fontWeight: '600'}}>Retry</Text>
+          <Text style={{...TYPE.button, color: '#fff'}}>Retry</Text>
         </Pressable>
       </View>
     );
@@ -477,7 +479,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
         <Sidebar selected={filter} onSelect={onFilter} />
         <View
           style={{
-            width: 300,
+            width: 340,
             borderRightWidth: 1,
             borderRightColor: theme.border,
             backgroundColor: theme.bg,
@@ -485,31 +487,60 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
         >
           <View
             style={{
+              height: 52,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: 10,
+              paddingHorizontal: SP(2),
               borderBottomWidth: 1,
-              borderBottomColor: theme.divider,
+              borderBottomColor: theme.border,
             }}
           >
-            <Pressable onPress={() => setComposeMode('compose')}>
-              <Text style={{color: theme.accent, fontWeight: '600'}}>
+            <Pressable
+              onPress={() => setComposeMode('compose')}
+              style={{
+                height: 28,
+                paddingHorizontal: SP(2),
+                borderRadius: RADIUS.sm,
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{...TYPE.button, color: theme.textMuted}}>
                 ＋ Compose
               </Text>
             </Pressable>
             <Pressable
               accessibilityLabel="Settings"
               onPress={() => setSettingsOpen(true)}
+              style={{
+                width: 30,
+                height: 28,
+                borderRadius: RADIUS.sm,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <Text style={{color: theme.textMuted, fontWeight: '600'}}>⚙</Text>
+              <Text style={{...TYPE.button, color: theme.textMuted}}>⚙</Text>
             </Pressable>
           </View>
           <SearchBar value={query} onChange={onQuery} />
           {error ? (
-            <Text style={{padding: 12, color: theme.danger}}>
-              Couldn't reach Resend — retrying… (Sync error: {error})
-            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: SP(2),
+                paddingVertical: SP(1.5),
+                paddingHorizontal: SP(3),
+                backgroundColor: theme.danger + '14',
+                borderBottomWidth: 1,
+                borderBottomColor: theme.danger + '33',
+              }}
+            >
+              <Text style={{...TYPE.meta, color: theme.danger}}>
+                Couldn't reach Resend — retrying… (Sync error: {error})
+              </Text>
+            </View>
           ) : null}
           {ready && messages.length === 0 ? (
             <EmptyState message={emptyMessage()} />

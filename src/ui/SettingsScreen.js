@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, Pressable} from 'react-native';
 import {useTheme} from './useTheme';
+import {SP, RADIUS, TYPE} from './designTokens';
 
 const THEME_OPTIONS = [
   {key: 'auto', label: 'Auto'},
@@ -20,70 +21,99 @@ export default function SettingsScreen({
   const [from, setFrom] = useState(defaultFrom);
 
   return (
-    <View style={{flex: 1, backgroundColor: theme.bg, padding: 16}}>
+    <View style={{flex: 1, backgroundColor: theme.bg, padding: SP(4)}}>
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 16,
+          marginBottom: SP(4),
         }}>
-        <Text style={{fontSize: 18, fontWeight: '600', color: theme.text}}>
-          Settings
-        </Text>
+        <Text style={{...TYPE.title, color: theme.text}}>Settings</Text>
         <Pressable onPress={onClose}>
-          <Text style={{color: theme.accent}}>Done</Text>
+          <Text style={{...TYPE.button, color: theme.accent}}>Done</Text>
         </Pressable>
       </View>
 
-      <Text style={{color: theme.textMuted, marginBottom: 4}}>From address</Text>
-      <TextInput
-        placeholder="you@yourdomain.com"
-        placeholderTextColor={theme.textMuted}
-        value={from}
-        onChangeText={setFrom}
-        onBlur={() => onChangeFrom && onChangeFrom(from)}
-        autoCapitalize="none"
+      <View
         style={{
+          borderRadius: RADIUS.md,
           borderWidth: 1,
           borderColor: theme.border,
-          borderRadius: 8,
-          padding: 8,
-          color: theme.text,
-          marginBottom: 20,
-        }}
-      />
-
-      <Text style={{color: theme.textMuted, marginBottom: 6}}>Appearance</Text>
-      <View style={{flexDirection: 'row', marginBottom: 24}}>
-        {THEME_OPTIONS.map(opt => (
-          <Pressable
-            key={opt.key}
-            accessibilityLabel={`Theme ${opt.label}`}
-            onPress={() => onChangeTheme && onChangeTheme(opt.key)}
+          backgroundColor: theme.surface2,
+          marginBottom: SP(6),
+        }}>
+        <View
+          style={{
+            minHeight: 44,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: SP(3),
+            paddingVertical: SP(2),
+            borderBottomWidth: 1,
+            borderBottomColor: theme.divider,
+          }}>
+          <Text style={{...TYPE.body, color: theme.textMuted}}>From address</Text>
+          <TextInput
+            placeholder="you@yourdomain.com"
+            placeholderTextColor={theme.textMuted}
+            value={from}
+            onChangeText={setFrom}
+            onBlur={() => onChangeFrom && onChangeFrom(from)}
+            autoCapitalize="none"
             style={{
-              paddingVertical: 6,
-              paddingHorizontal: 14,
-              marginRight: 8,
-              borderRadius: 6,
-              backgroundColor:
-                themeOverride === opt.key ? theme.selectedBg : 'transparent',
-              borderWidth: 1,
-              borderColor: theme.border,
-            }}>
-            <Text
-              style={{
-                color: themeOverride === opt.key ? theme.accent : theme.text,
-                fontWeight: themeOverride === opt.key ? '600' : '400',
-              }}>
-              {opt.label}
-            </Text>
-          </Pressable>
-        ))}
+              flex: 1,
+              textAlign: 'right',
+              marginLeft: SP(3),
+              ...TYPE.body,
+              color: theme.text,
+            }}
+          />
+        </View>
+
+        <View
+          style={{
+            minHeight: 44,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: SP(3),
+            paddingVertical: SP(2),
+          }}>
+          <Text style={{...TYPE.body, color: theme.textMuted}}>Appearance</Text>
+          <View style={{flexDirection: 'row'}}>
+            {THEME_OPTIONS.map(opt => (
+              <Pressable
+                key={opt.key}
+                accessibilityLabel={`Theme ${opt.label}`}
+                onPress={() => onChangeTheme && onChangeTheme(opt.key)}
+                style={{
+                  paddingVertical: SP(1.5),
+                  paddingHorizontal: SP(3),
+                  marginLeft: SP(2),
+                  borderRadius: RADIUS.sm,
+                  backgroundColor:
+                    themeOverride === opt.key ? theme.selectedBg : 'transparent',
+                  borderWidth: 1,
+                  borderColor:
+                    themeOverride === opt.key ? theme.accent : theme.border,
+                }}>
+                <Text
+                  style={{
+                    ...TYPE.button,
+                    color: themeOverride === opt.key ? theme.accent : theme.text,
+                  }}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
       </View>
 
-      <Pressable onPress={onSignOut}>
-        <Text style={{color: theme.danger, fontWeight: '600'}}>Sign out</Text>
+      <Pressable onPress={onSignOut} style={{alignSelf: 'flex-start'}}>
+        <Text style={{...TYPE.button, color: theme.danger}}>Sign out</Text>
       </Pressable>
     </View>
   );

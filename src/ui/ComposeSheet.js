@@ -8,6 +8,7 @@ import {
   assembleForwardPayload,
   forwardSubject,
 } from '../compose/assembleCompose';
+import {SP, RADIUS, ELEV, TYPE} from './designTokens';
 
 export default function ComposeSheet({
   defaultFrom = '',
@@ -86,21 +87,46 @@ export default function ComposeSheet({
   };
 
   const fieldStyle = {
+    ...TYPE.meta,
+    color: theme.text,
+    height: 38,
+    paddingHorizontal: SP(2),
     borderBottomWidth: 1,
     borderBottomColor: theme.divider,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+  };
+
+  const subjectStyle = {
+    ...TYPE.sender,
+    fontWeight: '400',
     color: theme.text,
+    height: 38,
+    paddingHorizontal: SP(2),
+    borderBottomWidth: 1,
+    borderBottomColor: theme.divider,
   };
 
   return (
-    <View style={{borderTopWidth: 1, borderTopColor: theme.divider, backgroundColor: theme.bg}}>
-      <View style={{flexDirection: 'row', alignItems: 'center', padding: 8}}>
-        <Text style={{flex: 1, fontWeight: '600', color: theme.text}}>
+    <View
+      style={{
+        width: 680,
+        borderRadius: RADIUS.lg,
+        backgroundColor: theme.bg,
+        ...ELEV.sheet,
+      }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          height: 38,
+          paddingHorizontal: SP(2),
+          borderBottomWidth: 1,
+          borderBottomColor: theme.divider,
+        }}>
+        <Text style={{flex: 1, ...TYPE.sender, color: theme.text}}>
           {mode === 'forward' ? 'Forward' : 'New message'}
         </Text>
         <Pressable onPress={onClose}>
-          <Text style={{color: theme.accent}}>Close</Text>
+          <Text style={{...TYPE.button, color: theme.accent}}>Close</Text>
         </Pressable>
       </View>
       <View style={{flexDirection: 'row', alignItems: 'center'}}>
@@ -110,9 +136,9 @@ export default function ComposeSheet({
         {mode !== 'forward' ? (
           <Pressable
             onPress={() => setShowCcBcc(v => !v)}
-            style={{paddingHorizontal: 10}}
+            style={{paddingHorizontal: SP(2.5)}}
           >
-            <Text style={{color: theme.accent}}>Cc/Bcc</Text>
+            <Text style={{...TYPE.button, color: theme.accent}}>Cc/Bcc</Text>
           </Pressable>
         ) : null}
       </View>
@@ -136,35 +162,44 @@ export default function ComposeSheet({
         placeholderTextColor={theme.textMuted}
         value={subject}
         onChangeText={setSubject}
-        style={fieldStyle}
+        style={subjectStyle}
       />
-      <View style={{height: 180}}>
+      <View style={{minHeight: 80}}>
         <Composer onChange={handleChange} />
       </View>
-      <View style={{flexDirection: 'row', alignItems: 'center', padding: 8}}>
-        <Pressable
-          onPress={send}
-          disabled={status === 'sending'}
-          style={{
-            backgroundColor: theme.selectedBg,
-            borderRadius: 6,
-            paddingVertical: 6,
-            paddingHorizontal: 16,
-          }}>
-          <Text style={{color: theme.accent, fontWeight: '600'}}>
-            {status === 'sending' ? 'Sending…' : 'Send'}
-          </Text>
-        </Pressable>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: SP(2),
+          padding: SP(3),
+        }}>
         {status === 'sent' ? (
-          <Text style={{marginLeft: 12, color: '#2a8a3e'}}>Sent</Text>
+          <Text style={{...TYPE.meta, color: theme.success}}>Sent</Text>
         ) : null}
         {status === 'failed' ? (
-          <Pressable onPress={send} style={{marginLeft: 12}}>
-            <Text style={{color: theme.danger}}>
+          <Pressable onPress={send}>
+            <Text style={{...TYPE.meta, color: theme.danger}}>
               {errorText ? `${errorText} — Retry` : 'Failed — Retry'}
             </Text>
           </Pressable>
         ) : null}
+        <Pressable
+          onPress={send}
+          disabled={status === 'sending'}
+          style={{
+            height: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: SP(4),
+            borderRadius: RADIUS.sm,
+            backgroundColor: theme.accent,
+          }}>
+          <Text style={{...TYPE.button, color: '#fff'}}>
+            {status === 'sending' ? 'Sending…' : 'Send'}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );

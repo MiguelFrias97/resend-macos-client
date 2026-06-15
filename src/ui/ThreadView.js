@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {ScrollView, View, Text, Pressable} from 'react-native';
 import MessageBody from './MessageBody';
 import {useTheme} from './useTheme';
+import {SP, TYPE} from './designTokens';
 
 // Renders a thread's messages. Only expanded messages mount a MessageBody (and
 // thus fetch their body / spin up a WKWebView), so opening a long thread doesn't
@@ -30,14 +31,14 @@ export default function ThreadView({messages, bodyDeps, allowRemote}) {
             <Pressable
               onPress={() => toggle(m.id)}
               style={{
-                paddingHorizontal: 16,
-                paddingVertical: 8,
+                paddingVertical: SP(5),
+                paddingHorizontal: SP(7),
                 backgroundColor: m.direction === 'sent' ? theme.sentBg : theme.bg,
               }}>
-              <Text style={{fontWeight: '600', color: theme.text}}>
+              <Text style={{...TYPE.sender, color: theme.text}}>
                 {m.direction === 'sent' ? 'You' : m.from}
               </Text>
-              <Text style={{color: theme.textMuted, fontSize: 12}}>{m.receivedAt}</Text>
+              <Text style={{...TYPE.meta, color: theme.textFaint}}>{m.receivedAt}</Text>
             </Pressable>
             {isOpen ? (
               <View style={{height: 240}}>

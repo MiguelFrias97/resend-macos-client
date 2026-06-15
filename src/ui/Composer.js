@@ -4,15 +4,25 @@ import RichEditorView, {commands} from '../native/RichEditorView';
 import {docModelToHtml} from '../editor/docModelToHtml';
 import {collectInlineImages} from '../editor/collectInlineImages';
 import {useTheme} from './useTheme';
+import {SP, RADIUS, TYPE} from './designTokens';
 
 function ToolbarButton({label, onPress, children, color}) {
   return (
     <Pressable
       accessibilityLabel={label}
       onPress={onPress}
-      style={{paddingVertical: 4, paddingHorizontal: 10, marginRight: 4}}
+      style={({hovered, pressed}) => ({
+        width: 28,
+        height: 28,
+        borderRadius: RADIUS.sm,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: hovered || pressed ? color.hover : 'transparent',
+      })}
     >
-      <Text style={{fontWeight: '600', color}}>{children}</Text>
+      <Text style={{...TYPE.button, fontWeight: '600', color: color.text}}>
+        {children}
+      </Text>
     </Pressable>
   );
 }
@@ -32,33 +42,40 @@ export default function Composer({onChange}) {
     }
   };
 
+  const btnColor = {text: theme.text, hover: theme.hover};
+
   return (
     <View style={{flex: 1, backgroundColor: theme.bg}}>
       <View
         style={{
           flexDirection: 'row',
-          padding: 6,
+          gap: SP(0.5),
+          height: 32,
+          alignItems: 'center',
           borderBottomWidth: 1,
           borderBottomColor: theme.divider,
         }}
       >
-        <ToolbarButton label="Bold" onPress={commands.bold} color={theme.text}>
+        <ToolbarButton label="Bold" onPress={commands.bold} color={btnColor}>
           B
         </ToolbarButton>
-        <ToolbarButton label="Italic" onPress={commands.italic} color={theme.text}>
+        <ToolbarButton label="Italic" onPress={commands.italic} color={btnColor}>
           i
         </ToolbarButton>
-        <ToolbarButton label="Underline" onPress={commands.underline} color={theme.text}>
+        <ToolbarButton label="Underline" onPress={commands.underline} color={btnColor}>
           U
         </ToolbarButton>
-        <ToolbarButton label="Bulleted list" onPress={commands.bulletList} color={theme.text}>
+        <ToolbarButton label="Bulleted list" onPress={commands.bulletList} color={btnColor}>
           •
         </ToolbarButton>
-        <ToolbarButton label="Numbered list" onPress={commands.numberList} color={theme.text}>
+        <ToolbarButton label="Numbered list" onPress={commands.numberList} color={btnColor}>
           1.
         </ToolbarButton>
       </View>
-      <RichEditorView style={{flex: 1}} onChange={handleNativeChange} />
+      <RichEditorView
+        style={{flex: 1, minHeight: 80, ...TYPE.body, color: theme.text}}
+        onChange={handleNativeChange}
+      />
     </View>
   );
 }
