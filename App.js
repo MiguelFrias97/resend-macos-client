@@ -23,7 +23,7 @@ export default function App() {
     );
   }
   return apiKey ? (
-    <InboxScreen apiKey={apiKey} />
+    <InboxScreen apiKey={apiKey} onSignOut={() => setApiKey(null)} />
   ) : (
     <Onboarding onComplete={k => setApiKey(k)} />
   );

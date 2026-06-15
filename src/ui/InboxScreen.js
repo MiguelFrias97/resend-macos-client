@@ -7,8 +7,10 @@ import Sidebar from './Sidebar';
 import SearchBar from './SearchBar';
 import ThreadView from './ThreadView';
 import ComposeSheet from './ComposeSheet';
+import SettingsScreen from './SettingsScreen';
 import EmptyState from './EmptyState';
 import {useTheme} from './useTheme';
+import {setOverride} from './themeOverride';
 import {notify} from '../native/Notifications';
 import {createLocalStore} from '../data/localStore';
 import {openDb} from '../data/db';
@@ -16,6 +18,7 @@ import {createMailSource} from '../net/mailSource';
 import {createSender} from '../net/sender';
 import {startSyncLoop} from '../core/sync';
 import {sendReply, processOutbox} from '../core/outbox';
+import {clearApiKey} from '../native/Keychain';
 import {replyPayloadError} from '../reply/assembleReply';
 import {
   sanitizeFilename,
@@ -24,7 +27,7 @@ import {
   isInlineImage,
 } from '../files/attachmentSafety';
 
-export default function InboxScreen({apiKey, makeStore, makeSource}) {
+export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) {
   const theme = useTheme();
   const [messages, setMessages] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -40,6 +43,8 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
   const [composeMode, setComposeMode] = useState(null); // null | 'compose' | 'forward'
   const [forwardData, setForwardData] = useState(null);
   const [fromIdentity, setFromIdentity] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [themeChoice, setThemeChoice] = useState('auto');
   const servicesRef = useRef(null);
   const outboxBusyRef = useRef(false);
   const filterRef = useRef('inbox');
@@ -77,6 +82,11 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
       setReady(true);
       const savedFrom = await store.getSetting('fromIdentity');
       if (!cancelled && savedFrom) setFromIdentity(savedFrom);
+      const savedTheme = await store.getSetting('themeOverride');
+      if (!cancelled && savedTheme) {
+        setThemeChoice(savedTheme);
+        setOverride(savedTheme);
+      }
       await loadListRef.current();
       const stopSync = startSyncLoop({
         source,
@@ -245,6 +255,21 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
     servicesRef.current.store.setSetting('fromIdentity', value).catch(() => {});
   };
 
+  const onChangeTheme = value => {
+    setThemeChoice(value);
+    setOverride(value);
+    servicesRef.current.store.setSetting('themeOverride', value).catch(() => {});
+  };
+
+  const onSignOutPressed = async () => {
+    try {
+      await clearApiKey();
+    } catch (e) {
+      // ignore — we still sign out of the session below.
+    }
+    if (onSignOut) onSignOut();
+  };
+
   // Compose/forward both send through the outbox; no thread, no sent-message row.
   const onSendMail = async payload => {
     const recipients = Array.isArray(payload.to) ? payload.to : [];
@@ -370,18 +395,28 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
             backgroundColor: theme.bg,
           }}
         >
-          <Pressable
-            onPress={() => setComposeMode('compose')}
+          <View
             style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               padding: 10,
               borderBottomWidth: 1,
               borderBottomColor: theme.divider,
             }}
           >
-            <Text style={{color: theme.accent, fontWeight: '600'}}>
-              ＋ Compose
-            </Text>
-          </Pressable>
+            <Pressable onPress={() => setComposeMode('compose')}>
+              <Text style={{color: theme.accent, fontWeight: '600'}}>
+                ＋ Compose
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Settings"
+              onPress={() => setSettingsOpen(true)}
+            >
+              <Text style={{color: theme.textMuted, fontWeight: '600'}}>⚙</Text>
+            </Pressable>
+          </View>
           <SearchBar value={query} onChange={onQuery} />
           {error ? (
             <Text style={{padding: 12, color: theme.danger}}>
@@ -487,6 +522,27 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
               setComposeMode(null);
               setForwardData(null);
             }}
+          />
+        </View>
+      ) : null}
+      {settingsOpen ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: theme.bg,
+          }}
+        >
+          <SettingsScreen
+            defaultFrom={fromIdentity}
+            onChangeFrom={onChangeFrom}
+            themeOverride={themeChoice}
+            onChangeTheme={onChangeTheme}
+            onSignOut={onSignOutPressed}
+            onClose={() => setSettingsOpen(false)}
           />
         </View>
       ) : null}
