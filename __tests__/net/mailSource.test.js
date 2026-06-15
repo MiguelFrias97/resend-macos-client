@@ -62,3 +62,19 @@ test('getAttachment returns metadata with downloadUrl', async () => {
   const a = await source.getAttachment('recv_1', 'a1');
   expect(a.downloadUrl).toBe('https://d/x');
 });
+
+test('downloadBytes refuses non-https urls (SSRF / local-file read)', async () => {
+  let called = false;
+  const fetchImpl = async () => { called = true; return {status: 200}; };
+  const source = createMailSource({apiKey: 're_x', fetchImpl});
+  await expect(source.downloadBytes('file:///etc/passwd')).rejects.toThrow(/https/);
+  await expect(source.downloadBytes('http://169.254.169.254/')).rejects.toThrow(/https/);
+  expect(called).toBe(false); // never even issued the request
+});
+
+test('downloadBytes allows https urls', async () => {
+  const fetchImpl = async url => ({status: 200, _url: url});
+  const source = createMailSource({apiKey: 're_x', fetchImpl});
+  const res = await source.downloadBytes('https://d.example.com/file');
+  expect(res.status).toBe(200);
+});

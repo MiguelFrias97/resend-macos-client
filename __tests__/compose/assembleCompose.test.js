@@ -10,22 +10,31 @@ test('isEmail validates basic address shape', () => {
 });
 
 test('parseRecipients splits and unwraps addresses', () => {
-  expect(parseRecipients('a@x')).toEqual(['a@x']);
-  expect(parseRecipients('A <a@x>, b@y')).toEqual(['a@x', 'b@y']);
-  expect(parseRecipients('a@x; b@y')).toEqual(['a@x', 'b@y']);
-  expect(parseRecipients(['A <a@x>', 'b@y'])).toEqual(['a@x', 'b@y']); // array input
+  expect(parseRecipients('a@x.com')).toEqual(['a@x.com']);
+  expect(parseRecipients('A <a@x.com>, b@y.com')).toEqual(['a@x.com', 'b@y.com']);
+  expect(parseRecipients('a@x.com; b@y.com')).toEqual(['a@x.com', 'b@y.com']);
+  expect(parseRecipients(['A <a@x.com>', 'b@y.com'])).toEqual(['a@x.com', 'b@y.com']); // array input
   expect(parseRecipients('')).toEqual([]);
 });
 
+test('parseRecipients drops malformed and header-injecting addresses', () => {
+  // Invalid shapes are dropped rather than sent.
+  expect(parseRecipients('bob')).toEqual([]);
+  expect(parseRecipients('a@x')).toEqual([]); // no TLD
+  // A smuggled newline / extra header must never survive to the payload.
+  expect(parseRecipients('a@x.com\r\nBcc: victim@evil.com')).toEqual([]);
+  expect(parseRecipients(['good@x.com', 'a@x.com\nCc: x@y.com'])).toEqual(['good@x.com']);
+});
+
 test('assembleComposePayload adds cc/bcc only when present', () => {
-  const base = assembleComposePayload({from: 'me@you.com', to: ['a@x'], subject: 'Hi', html: '<p>x</p>'});
+  const base = assembleComposePayload({from: 'me@you.com', to: ['a@x.com'], subject: 'Hi', html: '<p>x</p>'});
   expect(base.cc).toBeUndefined();
   expect(base.bcc).toBeUndefined();
   const full = assembleComposePayload({
-    from: 'me@you.com', to: ['a@x'], cc: ['c@z'], bcc: 'd@w', subject: 'Hi', html: '<p>x</p>',
+    from: 'me@you.com', to: ['a@x.com'], cc: ['c@z.com'], bcc: 'd@w.com', subject: 'Hi', html: '<p>x</p>',
   });
-  expect(full.cc).toEqual(['c@z']);
-  expect(full.bcc).toEqual(['d@w']);
+  expect(full.cc).toEqual(['c@z.com']);
+  expect(full.bcc).toEqual(['d@w.com']);
 });
 
 test('forwardSubject prefixes Fwd: once', () => {
@@ -37,13 +46,13 @@ test('forwardSubject prefixes Fwd: once', () => {
 test('assembleComposePayload builds a payload with inline images', () => {
   const p = assembleComposePayload({
     from: 'Me <me@you.com>',
-    to: 'a@x, b@y',
+    to: 'a@x.com, b@y.com',
     subject: 'Hello',
     html: '<p>hi</p>',
     inlineImages: [{contentId: 'img_1', filename: 'p.png', contentType: 'image/png', base64: 'AAAA'}],
   });
   expect(p.from).toBe('me@you.com');
-  expect(p.to).toEqual(['a@x', 'b@y']);
+  expect(p.to).toEqual(['a@x.com', 'b@y.com']);
   expect(p.subject).toBe('Hello');
   expect(p.html).toBe('<p>hi</p>');
   expect(p.attachments).toEqual([
@@ -55,14 +64,14 @@ test('assembleForwardPayload quotes the original and re-attaches files as base64
   const original = {from: 'Marcus <marcus@acme.com>', subject: 'Deal', receivedAt: 'now'};
   const p = assembleForwardPayload({
     from: 'me@you.com',
-    to: 'c@z',
+    to: 'c@z.com',
     original,
     originalHtml: '<p>the deal</p>',
     replyHtml: '<p>see below</p>',
     originalAttachments: [{filename: 'doc.pdf', content: 'BBBB', contentType: 'application/pdf'}],
   });
   expect(p.from).toBe('me@you.com');
-  expect(p.to).toEqual(['c@z']);
+  expect(p.to).toEqual(['c@z.com']);
   expect(p.subject).toBe('Fwd: Deal');
   expect(p.html).toContain('see below');
   expect(p.html).toContain('gmail_quote');

@@ -13,8 +13,22 @@ class AttachmentFile: NSObject {
     return appSupport.appendingPathComponent("ResendMail/attachments", isDirectory: true)
   }
 
+  // Reduce an untrusted string to a single safe filename component. lastPathComponent
+  // alone does NOT neutralize ".." (it returns ".."), so reject traversal/empty
+  // components explicitly. Returns nil if nothing safe remains.
+  static func safeComponent(_ raw: String) -> String? {
+    let base = (raw as NSString).lastPathComponent
+    if base.isEmpty || base == "." || base == ".." || base.contains("/") || base.contains("\0") {
+      return nil
+    }
+    return base
+  }
+
   private func dir(for messageId: String) throws -> URL {
-    let safeId = (messageId as NSString).lastPathComponent
+    guard let safeId = AttachmentFile.safeComponent(messageId) else {
+      throw NSError(domain: "AttachmentFile", code: -2,
+                    userInfo: [NSLocalizedDescriptionKey: "invalid message id"])
+    }
     let url = try attachmentsBase().appendingPathComponent(safeId, isDirectory: true)
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     return url
@@ -50,8 +64,10 @@ class AttachmentFile: NSObject {
   func downloadToCache(_ messageId: String, name: String, url: String, quarantine: Bool,
                        resolver resolve: @escaping RCTPromiseResolveBlock,
                        rejecter reject: @escaping RCTPromiseRejectBlock) {
-    guard let remote = URL(string: url) else {
-      reject("bad_url", "invalid download url", nil)
+    // download url is server-supplied: require https so a spoofed response can't
+    // point us at file:// (local-file read) or an internal host (SSRF).
+    guard let remote = URL(string: url), remote.scheme?.lowercased() == "https" else {
+      reject("bad_url", "download url must be https", nil)
       return
     }
     let task = URLSession.shared.dataTask(with: remote) { data, response, error in
@@ -70,7 +86,10 @@ class AttachmentFile: NSObject {
         return
       }
       do {
-        let safeName = (name as NSString).lastPathComponent
+        guard let safeName = AttachmentFile.safeComponent(name) else {
+          reject("bad_name", "invalid attachment name", nil)
+          return
+        }
         let fileURL = try self.dir(for: messageId).appendingPathComponent(safeName)
         try data.write(to: fileURL, options: .atomic)
         if quarantine {

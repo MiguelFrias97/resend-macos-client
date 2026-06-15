@@ -56,3 +56,13 @@ test('emits a Content-Security-Policy that gates remote loads on allowRemote', (
   const allowed = sanitizeEmailHtml('<p>x</p>', {allowRemote: true});
   expect(allowed).toContain('img-src cidcache: data: https:');
 });
+
+test('CSP locks down base-uri, object-src, form-action and remote fonts', () => {
+  const out = sanitizeEmailHtml('<p>hi</p>', {allowRemote: true});
+  expect(out).toMatch(/base-uri 'none'/);
+  expect(out).toMatch(/object-src 'none'/);
+  expect(out).toMatch(/form-action 'none'/);
+  // Even when remote is allowed, fonts stay data:-only (no remote @font-face exfil).
+  expect(out).toContain('font-src data:;');
+  expect(out).not.toContain('font-src data: https:');
+});

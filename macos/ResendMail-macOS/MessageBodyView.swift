@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import React
 import WebKit
 
@@ -89,14 +90,26 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
     let url = navigationAction.request.url
     let scheme = url?.scheme?.lowercased() ?? ""
 
-    // Allow only the local document load and our inline-image scheme. file://
-    // is intentionally NOT allowed for untrusted email HTML.
+    // A user clicking a link must never navigate the message view itself to an
+    // arbitrary page (in-app phishing/UI-redress). Hand link clicks to the
+    // default browser and cancel the in-webview navigation.
+    if navigationAction.navigationType == .linkActivated {
+      if let url = url, (scheme == "http" || scheme == "https" || scheme == "mailto") {
+        NSWorkspace.shared.open(url)
+      }
+      decisionHandler(.cancel)
+      return
+    }
+
+    // Allow only the programmatic document load and our inline-image scheme.
+    // file:// is intentionally NOT allowed for untrusted email HTML.
     if scheme.isEmpty || scheme == "about" || scheme == "cidcache" {
       decisionHandler(.allow)
       return
     }
 
-    // http / https (and any other remote scheme): gated by allowRemote.
+    // Any other non-link navigation (e.g. a meta-refresh/remote resource frame):
+    // gated by allowRemote.
     decisionHandler(allowRemote ? .allow : .cancel)
   }
 
@@ -125,10 +138,12 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
     }
     contentId = contentId.removingPercentEncoding ?? contentId
     // Strip any path components so a crafted cid can't traverse out of cacheDir.
+    // lastPathComponent does NOT neutralize "..", so reject it explicitly.
     contentId = (contentId as NSString).lastPathComponent
 
-    guard !contentId.isEmpty, !cacheDir.isEmpty else {
-      fail("empty content id or cache dir")
+    guard !contentId.isEmpty, contentId != ".", contentId != "..",
+          !contentId.contains("/"), !cacheDir.isEmpty else {
+      fail("empty or unsafe content id")
       return
     }
 
@@ -173,18 +188,15 @@ class MessageBodyNSView: NSView, WKNavigationDelegate, WKURLSchemeHandler {
       if b[0] == 0x47, b[1] == 0x49, b[2] == 0x46 { return "image/gif" }
       if b[0] == 0x52, b[1] == 0x49, b[2] == 0x46, b[3] == 0x46 { return "image/webp" }
     }
-    // SVG is text-based (no magic bytes): detect a leading XML/svg marker.
-    if let head = String(data: data.prefix(256), encoding: .utf8) {
-      let trimmed = head.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-      if trimmed.hasPrefix("<?xml") || trimmed.hasPrefix("<svg") { return "image/svg+xml" }
-    }
+    // Intentionally do NOT serve image/svg+xml: SVG can carry active content and
+    // its bytes arrive out-of-band (the JS sanitizer never sees them). Inline
+    // images are raster-only; anything else renders as a non-active octet-stream.
     let ext = (path as NSString).pathExtension.lowercased()
     switch ext {
     case "png": return "image/png"
     case "jpg", "jpeg": return "image/jpeg"
     case "gif": return "image/gif"
     case "webp": return "image/webp"
-    case "svg": return "image/svg+xml"
     case "bmp": return "image/bmp"
     case "tif", "tiff": return "image/tiff"
     case "ico": return "image/x-icon"

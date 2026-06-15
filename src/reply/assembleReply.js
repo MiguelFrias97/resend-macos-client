@@ -1,7 +1,26 @@
 import sanitizeHtml from 'sanitize-html';
 
+// Strip CR/LF and other control chars. Values that end up in outbound headers
+// (subject, addresses, In-Reply-To/References) originate from attacker-controlled
+// received-email headers, so a raw newline could inject extra SMTP headers
+// (e.g. a silent Bcc). Defense-in-depth at the assembly boundary — never rely on
+// the transport to sanitize for us.
+export function stripControlChars(s) {
+  // eslint-disable-next-line no-control-regex
+  return String(s == null ? '' : s).replace(/[\x00-\x1f\x7f]/g, '').trim();
+}
+
+// A Message-ID is a single whitespace-free token. Drop anything with whitespace
+// or commas (which would break the space-joined References list or inject a
+// header). Accepts ids with or without angle brackets (Resend may omit them).
+export function sanitizeMessageId(id) {
+  const s = stripControlChars(id);
+  if (!s || /[\s,]/.test(s)) return null;
+  return s;
+}
+
 export function replySubject(subject) {
-  const s = (subject || '').trim();
+  const s = stripControlChars(subject);
   if (!s) return 'Re:';
   return /^re:/i.test(s) ? s : `Re: ${s}`;
 }
@@ -10,13 +29,16 @@ export function extractEmail(addr) {
   // Take the first address if a comma-joined list, then unwrap "Name <email>".
   const first = String(addr || '').split(',')[0];
   const m = /<([^>]+)>/.exec(first);
-  return (m ? m[1] : first).trim();
+  return stripControlChars(m ? m[1] : first);
 }
 
 export function replyHeaders(original) {
-  const id = original.rfcMessageId;
+  const id = sanitizeMessageId(original.rfcMessageId);
   if (!id) return {};
-  const refs = [...(original.references || []), id].filter(Boolean);
+  const refs = [
+    ...(original.references || []).map(sanitizeMessageId).filter(Boolean),
+    id,
+  ];
   return {'In-Reply-To': id, References: refs.join(' ')};
 }
 

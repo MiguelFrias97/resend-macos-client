@@ -5,9 +5,12 @@ function req(obj, field) {
   return obj[field];
 }
 
+// Cap the References list: it feeds a SQL IN(...) placeholder list downstream,
+// and a maliciously long header shouldn't be able to bloat that query.
+const MAX_REFS = 50;
 function toRefArray(v) {
-  if (Array.isArray(v)) return v;
-  if (typeof v === 'string' && v.trim()) return v.trim().split(/\s+/);
+  if (Array.isArray(v)) return v.slice(0, MAX_REFS);
+  if (typeof v === 'string' && v.trim()) return v.trim().split(/\s+/).slice(0, MAX_REFS);
   return [];
 }
 
@@ -70,9 +73,8 @@ export function validateReceivedEmailContent(raw) {
     id,
     html: typeof raw.html === 'string' ? raw.html : null,
     text: typeof raw.text === 'string' ? raw.text : null,
-    headers,
-    // The reply headers live here (the list endpoint omits them) — used to
-    // group a thread by RFC Message-ID once a body is retrieved.
+    // Only the specific threading headers are extracted (as strings) — the raw
+    // headers object is attacker-controlled and unbounded, so it is not retained.
     inReplyTo: firstHeaderValue(header(headers, 'in-reply-to') || raw.in_reply_to),
     references: toRefArray(header(headers, 'references') || raw.references),
     attachments,
