@@ -36,8 +36,12 @@ export default function Onboarding({onComplete, deps = {}}) {
   async function connect() {
     setBusy(true);
     setError(null);
+    // Pasted keys routinely carry surrounding whitespace or a trailing newline,
+    // which makes the Authorization header malformed and Resend reject it with
+    // 400 "API key is invalid". Trim before verifying, saving, and using it.
+    const cleanKey = key.trim();
     // verify() returns either a boolean (legacy / test mock) or {ok, status, reason}.
-    const result = await verify(key);
+    const result = await verify(cleanKey);
     const ok = result === true || (result && result.ok);
     if (!ok) {
       const status = (result && result.status) || 0;
@@ -46,9 +50,9 @@ export default function Onboarding({onComplete, deps = {}}) {
       setBusy(false);
       return;
     }
-    await save(key);
+    await save(cleanKey);
     setBusy(false);
-    onComplete(key);
+    onComplete(cleanKey);
   }
 
   return (
