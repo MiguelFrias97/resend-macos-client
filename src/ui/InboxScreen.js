@@ -39,6 +39,8 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const [allowRemote, setAllowRemote] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [ready, setReady] = useState(false);
+  const [initError, setInitError] = useState(null);
+  const [bootSeq, setBootSeq] = useState(0);
   const [replying, setReplying] = useState(false);
   const [originalHtml, setOriginalHtml] = useState('');
   const [composeMode, setComposeMode] = useState(null); // null | 'compose' | 'forward'
@@ -73,9 +75,24 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     let cancelled = false;
     let stop = () => {};
     (async () => {
-      const store = makeStore
-        ? await makeStore()
-        : await createLocalStore(await openEncryptedDb());
+      let store;
+      try {
+        store = makeStore
+          ? await makeStore()
+          : await createLocalStore(await openEncryptedDb());
+      } catch (e) {
+        // Opening the encrypted local cache failed (e.g. the Keychain key read
+        // was denied on an ad-hoc build, or SQLCipher isn't linked). Surface a
+        // clear, actionable message instead of hanging on a blank screen.
+        if (!cancelled) {
+          setInitError(
+            e && e.code === 'KEYCHAIN_DENIED'
+              ? "Couldn't unlock your local cache — macOS denied Keychain access. Click Retry and choose Allow."
+              : `Couldn't open your local cache: ${e.message}`,
+          );
+        }
+        return;
+      }
       const source = makeSource ? makeSource() : createMailSource({apiKey});
       const sender = createSender({apiKey});
       if (cancelled) return;
@@ -122,7 +139,12 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       stop();
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [apiKey, makeStore, makeSource]);
+  }, [apiKey, makeStore, makeSource, bootSeq]);
+
+  const retryInit = () => {
+    setInitError(null);
+    setBootSeq(s => s + 1);
+  };
 
   const onFilter = f => {
     filterRef.current = f;
@@ -412,6 +434,42 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
         return 'Your inbox is empty';
     }
   };
+
+  if (initError) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: theme.bg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+      >
+        <Text
+          style={{color: theme.text, fontSize: 16, fontWeight: '600', marginBottom: 8}}
+        >
+          Can't open your mailbox cache
+        </Text>
+        <Text
+          style={{color: theme.textMuted, textAlign: 'center', marginBottom: 16}}
+        >
+          {initError}
+        </Text>
+        <Pressable
+          onPress={retryInit}
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 6,
+            backgroundColor: theme.accent,
+          }}
+        >
+          <Text style={{color: '#fff', fontWeight: '600'}}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={{flex: 1, backgroundColor: theme.bg}}>
