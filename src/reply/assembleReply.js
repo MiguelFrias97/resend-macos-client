@@ -1,5 +1,14 @@
 import sanitizeHtml from 'sanitize-html';
 
+// Reject whitespace, the address delimiters, and header/HTML-breaking chars so a
+// value that survives extractEmail still can't smuggle a second address or header.
+// Lives here (not assembleCompose) so the reply path can validate without a
+// circular import; assembleCompose re-exports it.
+const EMAIL = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
+export function isEmail(addr) {
+  return EMAIL.test(addr || '');
+}
+
 // Strip CR/LF and other control chars. Values that end up in outbound headers
 // (subject, addresses, In-Reply-To/References) originate from attacker-controlled
 // received-email headers, so a raw newline could inject extra SMTP headers
@@ -10,12 +19,14 @@ export function stripControlChars(s) {
   return String(s == null ? '' : s).replace(/[\x00-\x1f\x7f]/g, '').trim();
 }
 
-// A Message-ID is a single whitespace-free token. Drop anything with whitespace
-// or commas (which would break the space-joined References list or inject a
-// header). Accepts ids with or without angle brackets (Resend may omit them).
+// A Message-ID is a single token of printable ASCII. Require [\x21-\x7e] so
+// Unicode line/space separators (U+2028/2029, U+0085 NEL, NBSP) — which JS \s
+// and the control-char strip both miss — can't survive into a header, and drop
+// commas (which would break the space-joined References list). Accepts ids with
+// or without angle brackets (Resend may omit them).
 export function sanitizeMessageId(id) {
   const s = stripControlChars(id);
-  if (!s || /[\s,]/.test(s)) return null;
+  if (!s || s.includes(',') || !/^[\x21-\x7e]+$/.test(s)) return null;
   return s;
 }
 
@@ -84,8 +95,17 @@ export function replyPayloadError(payload) {
   if (!payload.from) {
     return "Can't reply: the original message has no address to send from.";
   }
+  // from/to are derived from the received email (attacker-controlled), so
+  // validate them here — this is the reply path's send-time gate, mirroring the
+  // isEmail check the compose path runs.
+  if (!isEmail(payload.from)) {
+    return "Can't reply: the From address on the original message is malformed.";
+  }
   if (!payload.to) {
     return "Can't reply: no recipient address found on the original message.";
+  }
+  if (!isEmail(payload.to)) {
+    return "Can't reply: the recipient address on the original message is malformed.";
   }
   return null;
 }

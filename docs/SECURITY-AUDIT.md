@@ -45,6 +45,54 @@ same change; each fix has a regression test (122 tests pass).
 - **Attachment hygiene** — filename sanitization (control/bidi/NUL/separators),
   `com.apple.quarantine` xattr on saved files, dangerous-type warning + no auto-open.
 
+## Round 2 — adversarial re-review (bypass hunting)
+
+A second pass tried to defeat the round-1 fixes and review untouched surfaces.
+Findings fixed, each with a regression test (125 tests pass):
+
+| # | Severity | Area | Issue | Fix |
+|---|----------|------|-------|-----|
+| 11 | High | Outbound | The **reply** send path validated only presence, never `isEmail` — so a malformed/injecting `from`/`to` derived from the received email bypassed the gate the compose path had | `replyPayloadError` now runs `isEmail` on `from` and `to`; `isEmail` moved to `assembleReply` to avoid a circular import |
+| 12 | High | Native / Net | The https check covered only the first hop; `URLSession`/`fetch` follow redirects, so an https URL could 302 to `http://localhost` (permitted by an ATS exception) → SSRF / cache poisoning | `AttachmentFile` uses a `URLSession` delegate that cancels any non-https redirect; JS `downloadBytes` uses `redirect: 'manual'` and rejects 3xx |
+| 13 | High | Editor | Inline images were unbounded (count/size/type) → memory DoS / oversized outbound mail | `collectInlineImages` caps count (20), per-image (~5 MB) and total (~25 MB) |
+| 14 | Med | Editor | Native `setLink` stored any scheme as a live, clickable link in the NSTextView (the `safeHref` allowlist only covered the generated HTML) | `setLink` now drops anything but `http`/`https`/`mailto` |
+| 15 | Med | Threading | `knownThreads` keyed by attacker-controlled Message-IDs on a plain object — a `__proto__` ref matched an inherited member and returned a non-string thread id | Null-prototype map + `hasOwnProperty` lookup |
+| 16 | Low | Outbound | `sanitizeMessageId` allowed Unicode line/space separators (U+0085 NEL, U+2028) that JS `\s` misses | Require printable ASCII `[\x21-\x7e]` |
+
+The round-1 defenses (CSP, SVG removal, cid `..` rejection, link routing,
+`parseRecipients` on the compose path, `safeComponent`, SQL allowlists) were
+re-attacked and **held**.
+
+Two minor sanitizer/allowlist gaps surfaced by the grading pass were also closed:
+the dangerous-attachment-extension set now includes macOS auto-run document types
+(`inetloc`/`fileloc`/`terminal`/`prefpane`/`mpkg`/`url`…), and the email-image
+sanitizer trims leading whitespace before its scheme check so a
+`<img src="  https://tracker">` is blanked by the sanitizer itself rather than
+relying solely on the CSP backstop.
+
+**Outcome:** two independent graders scored the hardened code **A / A−** with no
+A−-blocking issues.
+
+## Round 3 — at-rest encryption (closes the last residual)
+
+The local SQLite cache is now **encrypted at rest with SQLCipher**:
+
+- op-sqlite is built with SQLCipher (`"op-sqlite": {"sqlcipher": true}` in
+  `package.json`).
+- The encryption key is a **CSPRNG** value (`SecRandomCopyBytes`, 32 bytes)
+  generated on first run and stored in its own **Keychain** item
+  (`com.resendmail.dbkey`, `WhenUnlockedThisDeviceOnly` — same as the API key, no
+  iCloud sync). It never touches disk in plaintext.
+- `openEncryptedDb` opens the cache with the key and **fails closed** if the
+  native build doesn't actually link SQLCipher (no silent fallback to plaintext).
+- A pre-encryption plaintext cache is migrated by dropping and recreating it (the
+  cache is disposable — rebuilt from Resend on the next sync), so no plaintext mail
+  lingers on disk.
+
+This removes the previously-documented plaintext-at-rest residual; with the
+existing App Sandbox + `ThisDeviceOnly` Keychain, the offline-disk / backup /
+malware-as-user read vectors are now closed.
+
 ## Residual / accepted
 
 - With "Load images" enabled, remote `https:` images load (the intended opt-in) —
@@ -54,3 +102,9 @@ same change; each fix has a regression test (122 tests pass).
   malicious server). Low impact given the trusted Resend host over TLS.
 - `verifyApiKey` returns `false` for both a bad key and a network failure (a UX
   nicety, not a security issue).
+- ~~Cached mail is stored in a plaintext SQLite file.~~ **Fixed in round 3** —
+  the cache is now SQLCipher-encrypted with a Keychain-stored CSPRNG key (see
+  above).
+- The `localhost` ATS exception (needed by the Metro dev server) permits cleartext
+  HTTP only to `localhost`; the SSRF chain that relied on it is closed by the
+  redirect-blocking fix (#12), so the exception is no longer reachable as a vector.

@@ -3,8 +3,27 @@ import AppKit
 import React
 
 @objc(AttachmentFile)
-class AttachmentFile: NSObject {
+class AttachmentFile: NSObject, URLSessionTaskDelegate {
   @objc static func requiresMainQueueSetup() -> Bool { false }
+
+  // A session that refuses to follow a redirect to anything but https, so an
+  // https download URL can't 302 us to http://localhost or an internal host
+  // (the scheme guard on downloadToCache only covers the first hop).
+  private lazy var session: URLSession = {
+    URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+  }()
+
+  func urlSession(_ session: URLSession,
+                  task: URLSessionTask,
+                  willPerformHTTPRedirection response: HTTPURLResponse,
+                  newRequest request: URLRequest,
+                  completionHandler: @escaping (URLRequest?) -> Void) {
+    if request.url?.scheme?.lowercased() == "https" {
+      completionHandler(request)
+    } else {
+      completionHandler(nil) // cancel the redirect; the task ends with what it has
+    }
+  }
 
   private func attachmentsBase() throws -> URL {
     let fm = FileManager.default
@@ -70,7 +89,7 @@ class AttachmentFile: NSObject {
       reject("bad_url", "download url must be https", nil)
       return
     }
-    let task = URLSession.shared.dataTask(with: remote) { data, response, error in
+    let task = session.dataTask(with: remote) { data, response, error in
       if let error = error {
         reject("download", error.localizedDescription, error)
         return

@@ -80,6 +80,11 @@ class RichEditor: NSObject {
   }
 
   @objc func setLink(_ url: String) {
+    // Only allow safe schemes: the .link attribute is clickable inside the
+    // NSTextView (opening via NSWorkspace), so a javascript:/file:/custom-scheme
+    // link from pasted text must never be stored as a live link.
+    let scheme = URL(string: url)?.scheme?.lowercased() ?? ""
+    guard scheme == "http" || scheme == "https" || scheme == "mailto" else { return }
     withEditor { tv, range in
       guard range.length > 0, let storage = tv.textStorage else { return }
       storage.addAttribute(.link, value: url, range: range)

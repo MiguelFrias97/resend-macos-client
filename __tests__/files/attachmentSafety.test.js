@@ -32,3 +32,11 @@ test('isInlineImage only hides inline parts that have a content id', () => {
   expect(isInlineImage({disposition: 'attachment', contentId: 'cid1'})).toBe(false);
   expect(isInlineImage({disposition: null})).toBe(false);
 });
+
+test('flags macOS auto-run document types as dangerous', () => {
+  const {isDangerousFilename} = require('../../src/files/attachmentSafety');
+  for (const n of ['x.inetloc', 'x.fileloc', 'x.terminal', 'x.prefpane', 'x.mpkg', 'x.url']) {
+    expect(isDangerousFilename(n)).toBe(true);
+  }
+  expect(isDangerousFilename('photo.png')).toBe(false);
+});

@@ -10,4 +10,7 @@ RCT_EXTERN_METHOD(getApiKey:(NSString *)service
 RCT_EXTERN_METHOD(clearApiKey:(NSString *)service
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
+RCT_EXTERN_METHOD(randomKey:(nonnull NSNumber *)byteCount
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 @end

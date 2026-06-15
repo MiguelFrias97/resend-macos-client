@@ -66,7 +66,11 @@ export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
     allowedSchemes: ['http', 'https', 'mailto', 'cidcache'],
     transformTags: {
       img: (tagName, attribs) => {
-        let src = attribs.src || '';
+        // Trim leading whitespace/control chars before the scheme test so
+        // `<img src="  https://tracker">` is caught by the sanitizer itself,
+        // not just the CSP backstop (browsers ignore leading whitespace in URLs).
+        // eslint-disable-next-line no-control-regex
+        let src = (attribs.src || '').replace(/^[\s\x00-\x1f]+/, '');
         if (/^cid:/i.test(src)) {
           src = rewriteCid(src);
         } else if (/^https?:/i.test(src) && !allowRemote) {

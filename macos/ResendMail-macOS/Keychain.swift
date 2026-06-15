@@ -59,4 +59,20 @@ class Keychain: NSObject {
     if status == errSecSuccess || status == errSecItemNotFound { resolve(true) }
     else { reject("keychain_clear", "status \(status)", nil) }
   }
+
+  // Generate a cryptographically-random key (hex) for at-rest DB encryption.
+  // Uses SecRandomCopyBytes (CSPRNG) — never Math.random in JS.
+  @objc(randomKey:resolver:rejecter:)
+  func randomKey(_ byteCount: NSNumber,
+                 resolver resolve: RCTPromiseResolveBlock,
+                 rejecter reject: RCTPromiseRejectBlock) {
+    let count = max(16, min(byteCount.intValue, 64))
+    var bytes = [UInt8](repeating: 0, count: count)
+    let status = SecRandomCopyBytes(kSecRandomDefault, count, &bytes)
+    if status == errSecSuccess {
+      resolve(bytes.map { String(format: "%02x", $0) }.joined())
+    } else {
+      reject("keychain_random", "status \(status)", nil)
+    }
+  }
 }

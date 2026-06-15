@@ -24,10 +24,14 @@ test('quoteOriginal escapes the sender in the attribution', () => {
   expect(q).toContain('&lt;b&gt;');
 });
 
-test('replyPayloadError flags a missing From or To', () => {
-  expect(replyPayloadError({from: '', to: 'b@y'})).toMatch(/from/i);
-  expect(replyPayloadError({from: 'a@x', to: ''})).toMatch(/recipient/i);
-  expect(replyPayloadError({from: 'a@x', to: 'b@y'})).toBe(null);
+test('replyPayloadError flags a missing or malformed From or To', () => {
+  expect(replyPayloadError({from: '', to: 'b@y.com'})).toMatch(/from/i);
+  expect(replyPayloadError({from: 'a@x.com', to: ''})).toMatch(/recipient/i);
+  expect(replyPayloadError({from: 'a@x.com', to: 'b@y.com'})).toBe(null);
+  // Malformed / header-injecting addresses derived from the received email are
+  // rejected at the reply send-time gate (not just empty ones).
+  expect(replyPayloadError({from: 'a@x.com\r\nBcc: e@v.com', to: 'b@y.com'})).toMatch(/From/);
+  expect(replyPayloadError({from: 'a@x.com', to: 'not-an-email'})).toMatch(/recipient/i);
 });
 
 test('replySubject adds Re: once', () => {
@@ -65,6 +69,14 @@ test('replySubject and extractEmail strip CR/LF (no header smuggling)', () => {
   expect(replySubject('Deal\r\nBcc: x@y.com')).not.toMatch(/[\r\n]/);
   expect(extractEmail('a@x.com\r\nBcc: victim@evil.com')).not.toMatch(/[\r\n]/);
 });
+
+test('sanitizeMessageId rejects unicode line/space separators (NEL, U+2028)', () => {
+  const {sanitizeMessageId} = require('../../src/reply/assembleReply');
+  expect(sanitizeMessageId('<a@x>')).toBe('<a@x>');
+  expect(sanitizeMessageId('<a@x\u0085b>')).toBe(null); // NEL
+  expect(sanitizeMessageId('<a@x\u2028b>')).toBe(null); // line separator
+  expect(sanitizeMessageId('<a,b@x>')).toBe(null); // comma
+})
 
 test('quoteOriginal wraps the original in a gmail_quote block', () => {
   const q = quoteOriginal({from: 'A <a@x>', receivedAt: '2026-06-12T14:00:00Z'}, '<p>hi</p>');
