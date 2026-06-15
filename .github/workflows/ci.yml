@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Fast, reliable gate: lint + unit tests on Linux (no native toolchain needed).
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test -- --ci
+
+  # Best-effort native build. The project targets a recent Xcode (26.x) for the
+  # fmt/consteval Podfile patch; GitHub's macOS runners may ship an older Xcode,
+  # so this is informational (continue-on-error) rather than a required gate.
+  build-macos:
+    runs-on: macos-14
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install pods
+        run: cd macos && pod install
+      - name: Build (unsigned)
+        run: |
+          xcodebuild \
+            -workspace macos/ResendMail.xcworkspace \
+            -scheme ResendMail-macOS \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
