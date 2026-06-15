@@ -1,13 +1,14 @@
-import {extractEmail, quoteOriginal, inlineAttachmentParts, stripControlChars} from '../reply/assembleReply';
+import {
+  extractEmail,
+  quoteOriginal,
+  inlineAttachmentParts,
+  stripControlChars,
+  isEmail,
+} from '../reply/assembleReply';
 
-// Reject whitespace, the address delimiters, and header/HTML-breaking chars so a
-// value that survives extractEmail still can't smuggle a second address or header.
-const EMAIL = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
-
-// Shared so the recipient chips and the send-time validation never disagree.
-export function isEmail(addr) {
-  return EMAIL.test(addr || '');
-}
+// Re-export so existing imports (recipient chips, send-time validation) keep
+// working; the canonical definition lives in assembleReply to avoid a cycle.
+export {isEmail};
 
 export function parseRecipients(value) {
   // Accept an array (from the recipient token field) or a string (split on

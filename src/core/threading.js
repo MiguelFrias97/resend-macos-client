@@ -13,10 +13,15 @@ function participantsKey(m) {
 }
 
 // knownThreads: map of rfcMessageId -> threadId for already-ingested messages.
-export function threadIdFor(m, knownThreads = {}) {
+// Keys come from attacker-controlled Message-IDs, so look them up with
+// hasOwnProperty — a ref of "__proto__"/"constructor" must not match an
+// inherited Object.prototype member (which would return a non-string threadId).
+export function threadIdFor(m, knownThreads = Object.create(null)) {
   const refs = [...(m.references || []), m.inReplyTo].filter(Boolean);
   for (const ref of refs) {
-    if (knownThreads[ref]) return knownThreads[ref];
+    if (Object.prototype.hasOwnProperty.call(knownThreads, ref)) {
+      return knownThreads[ref];
+    }
   }
   if (m.inReplyTo) return m.inReplyTo;
   if (refs.length) return refs[0];

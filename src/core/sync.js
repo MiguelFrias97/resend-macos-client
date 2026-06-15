@@ -3,7 +3,8 @@ import {threadIdFor} from './threading';
 export async function syncOnce({
   source,
   store,
-  knownThreads = {},
+  // Null-prototype map: keys are attacker-controlled Message-IDs (see threadIdFor).
+  knownThreads = Object.create(null),
   knownIds,
   onNewMessages,
   onSkip,
@@ -45,7 +46,7 @@ export function startSyncLoop({
   onTick,
   onNewMessages,
 } = {}) {
-  const knownThreads = {};
+  const knownThreads = Object.create(null);
   const knownIds = new Set();
   let seeded = false;
   const tick = async () => {

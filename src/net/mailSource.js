@@ -78,7 +78,12 @@ export function createMailSource({apiKey, fetchImpl} = {}) {
     if (parsed.protocol !== 'https:') {
       throw new Error('downloadBytes: refusing non-https url');
     }
-    const res = await (fetchImpl || fetch)(parsed.toString());
+    // Block redirects: the https check only covers the first hop, so a 30x to
+    // http://localhost or an internal host would otherwise be followed.
+    const res = await (fetchImpl || fetch)(parsed.toString(), {redirect: 'manual'});
+    if (res.status >= 300 && res.status < 400) {
+      throw new Error('downloadBytes: refusing to follow redirect');
+    }
     if (res.status !== 200) throw new Error(`downloadBytes failed: ${res.status}`);
     return res;
   }
