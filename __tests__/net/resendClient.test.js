@@ -29,6 +29,13 @@ test('POST with a body sends Content-Type and a JSON-stringified body', async ()
   expect(opts.body).toBe(JSON.stringify({to: 'a@b.com'}));
 });
 
+test('trims whitespace/newlines from the API key (pasted-key 400 fix)', async () => {
+  const {calls, fetchImpl} = capture();
+  const client = createResendClient({apiKey: '  re_paste\n', fetchImpl});
+  await client.request('/emails/receiving?limit=1');
+  expect(calls[0].opts.headers.Authorization).toBe('Bearer re_paste');
+});
+
 test('caller headers cannot clobber the Authorization credential', async () => {
   const {calls, fetchImpl} = capture();
   const client = createResendClient({apiKey: 're_real', fetchImpl});
