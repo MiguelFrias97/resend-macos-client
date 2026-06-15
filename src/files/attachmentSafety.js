@@ -16,6 +16,18 @@ const DANGEROUS = new Set([
   'ps1',
   'webloc',
   'workflow',
+  // macOS launch/auto-run document types that can execute or open a URL on
+  // double-click even though they aren't classic "executables".
+  'inetloc',
+  'fileloc',
+  'terminal',
+  'prefpane',
+  'mpkg',
+  'action',
+  'applescript',
+  'osascript',
+  'shortcut',
+  'url',
 ]);
 
 // Strip ASCII control chars (U+0000-U+001F), space (U+0020), and Unicode

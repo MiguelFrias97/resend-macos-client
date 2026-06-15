@@ -66,3 +66,8 @@ test('CSP locks down base-uri, object-src, form-action and remote fonts', () => 
   expect(out).toContain('font-src data:;');
   expect(out).not.toContain('font-src data: https:');
 });
+
+test('blanks a remote img whose src has leading whitespace (no CSP-only reliance)', () => {
+  const out = sanitizeEmailHtml('<img src="   https://tracker/x.gif">', {allowRemote: false});
+  expect(out).not.toContain('tracker/x.gif');
+});

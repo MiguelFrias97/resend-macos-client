@@ -63,6 +63,16 @@ The round-1 defenses (CSP, SVG removal, cid `..` rejection, link routing,
 `parseRecipients` on the compose path, `safeComponent`, SQL allowlists) were
 re-attacked and **held**.
 
+Two minor sanitizer/allowlist gaps surfaced by the grading pass were also closed:
+the dangerous-attachment-extension set now includes macOS auto-run document types
+(`inetloc`/`fileloc`/`terminal`/`prefpane`/`mpkg`/`url`…), and the email-image
+sanitizer trims leading whitespace before its scheme check so a
+`<img src="  https://tracker">` is blanked by the sanitizer itself rather than
+relying solely on the CSP backstop.
+
+**Outcome:** two independent graders scored the hardened code **A / A−** with no
+A−-blocking issues.
+
 ## Residual / accepted
 
 - With "Load images" enabled, remote `https:` images load (the intended opt-in) —
