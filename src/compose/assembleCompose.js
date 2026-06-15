@@ -1,11 +1,10 @@
 import {extractEmail, quoteOriginal, inlineAttachmentParts} from '../reply/assembleReply';
 
 export function parseRecipients(value) {
-  // Split on comma or semicolon (pasted lists often use ';').
-  return String(value || '')
-    .split(/[,;]/)
-    .map(s => extractEmail(s))
-    .filter(Boolean);
+  // Accept an array (from the recipient token field) or a string (split on
+  // comma/semicolon — pasted lists often use ';').
+  const list = Array.isArray(value) ? value : String(value || '').split(/[,;]/);
+  return list.map(s => extractEmail(s)).filter(Boolean);
 }
 
 export function forwardSubject(subject) {
@@ -14,14 +13,19 @@ export function forwardSubject(subject) {
   return /^fwd:/i.test(s) ? s : `Fwd: ${s}`;
 }
 
-export function assembleComposePayload({from, to, subject, html, inlineImages = [], attachments = []}) {
-  return {
+export function assembleComposePayload({from, to, cc, bcc, subject, html, inlineImages = [], attachments = []}) {
+  const payload = {
     from: extractEmail(from),
     to: parseRecipients(to),
     subject: (subject || '').trim() || '(no subject)',
     html: html || '',
     attachments: [...inlineAttachmentParts(inlineImages), ...attachments],
   };
+  const ccList = parseRecipients(cc);
+  if (ccList.length) payload.cc = ccList;
+  const bccList = parseRecipients(bcc);
+  if (bccList.length) payload.bcc = bccList;
+  return payload;
 }
 
 export function assembleForwardPayload({from, to, original, originalHtml, replyHtml, inlineImages = [], originalAttachments = []}) {

@@ -6,7 +6,19 @@ test('parseRecipients splits and unwraps addresses', () => {
   expect(parseRecipients('a@x')).toEqual(['a@x']);
   expect(parseRecipients('A <a@x>, b@y')).toEqual(['a@x', 'b@y']);
   expect(parseRecipients('a@x; b@y')).toEqual(['a@x', 'b@y']);
+  expect(parseRecipients(['A <a@x>', 'b@y'])).toEqual(['a@x', 'b@y']); // array input
   expect(parseRecipients('')).toEqual([]);
+});
+
+test('assembleComposePayload adds cc/bcc only when present', () => {
+  const base = assembleComposePayload({from: 'me@you.com', to: ['a@x'], subject: 'Hi', html: '<p>x</p>'});
+  expect(base.cc).toBeUndefined();
+  expect(base.bcc).toBeUndefined();
+  const full = assembleComposePayload({
+    from: 'me@you.com', to: ['a@x'], cc: ['c@z'], bcc: 'd@w', subject: 'Hi', html: '<p>x</p>',
+  });
+  expect(full.cc).toEqual(['c@z']);
+  expect(full.bcc).toEqual(['d@w']);
 });
 
 test('forwardSubject prefixes Fwd: once', () => {
