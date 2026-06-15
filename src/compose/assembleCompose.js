@@ -1,6 +1,8 @@
-import {extractEmail, quoteOriginal, inlineAttachmentParts} from '../reply/assembleReply';
+import {extractEmail, quoteOriginal, inlineAttachmentParts, stripControlChars} from '../reply/assembleReply';
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Reject whitespace, the address delimiters, and header/HTML-breaking chars so a
+// value that survives extractEmail still can't smuggle a second address or header.
+const EMAIL = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
 
 // Shared so the recipient chips and the send-time validation never disagree.
 export function isEmail(addr) {
@@ -9,13 +11,15 @@ export function isEmail(addr) {
 
 export function parseRecipients(value) {
   // Accept an array (from the recipient token field) or a string (split on
-  // comma/semicolon — pasted lists often use ';').
+  // comma/semicolon — pasted lists often use ';'). Only well-formed addresses
+  // are kept: this is the send-time gate, so a malformed or header-injecting
+  // value (e.g. one with a smuggled newline) is dropped rather than sent.
   const list = Array.isArray(value) ? value : String(value || '').split(/[,;]/);
-  return list.map(s => extractEmail(s)).filter(Boolean);
+  return list.map(s => extractEmail(s)).filter(isEmail);
 }
 
 export function forwardSubject(subject) {
-  const s = (subject || '').trim();
+  const s = stripControlChars(subject);
   if (!s) return 'Fwd:';
   return /^fwd:/i.test(s) ? s : `Fwd: ${s}`;
 }

@@ -12,8 +12,25 @@
   // They will be passed down to the ViewController used by React Native.
   self.initialProps = @{};
   self.dependencyProvider = [RCTAppDependencyProvider new];
-  
-  return [super applicationDidFinishLaunching:notification];
+
+  [super applicationDidFinishLaunching:notification];
+
+  // Keep the main window object alive after the user clicks the red close
+  // button, so it can be reshown from the Dock (see applicationShouldHandleReopen
+  // below). Without this, the closed window is released and clicking the Dock
+  // icon does nothing.
+  self.window.releasedWhenClosed = NO;
+}
+
+// macOS keeps the app running after its last window closes. When the user then
+// clicks the Dock icon (no visible windows), bring the existing window back
+// instead of leaving the app with no UI.
+- (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag
+{
+  if (!flag && self.window != nil) {
+    [self.window makeKeyAndOrderFront:self];
+  }
+  return YES;
 }
 
 - (NSURL *)sourceURLForBridge:(RCTBridge *)bridge

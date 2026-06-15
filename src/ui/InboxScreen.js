@@ -185,7 +185,10 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
             ) {
               continue;
             }
-            const name = String(att.contentId).toLowerCase();
+            // contentId comes from the email's MIME headers (attacker-controlled)
+            // and is used as the cache filename — strip path separators so it
+            // can't traverse (the native layer also rejects unsafe names).
+            const name = String(att.contentId).toLowerCase().replace(/[/\\]/g, '');
             const path = await downloadToCache(id, att, name, false);
             await store.markAttachmentDownloaded(att.id, path);
           }

@@ -40,3 +40,42 @@ test('processOutbox retries failed items', async () => {
   await processOutbox({store, sender});
   expect(store.items[0].status).toBe('sent');
 });
+
+test('processOutbox does not retry permanent 4xx errors', async () => {
+  const store = fakeStore();
+  await store.enqueueOutbox({id: 'o1', payload: {}, sentMessage: {id: 's1'}});
+  store.items[0].status = 'failed';
+  let calls = 0;
+  const sender = {
+    send: async () => {
+      calls += 1;
+      const e = new Error('send failed: 422 invalid from');
+      e.status = 422;
+      throw e;
+    },
+  };
+  // A 422 is terminal: the item is marked failed past the retry cap, so a second
+  // processOutbox pass must NOT call the sender again.
+  await processOutbox({store, sender});
+  await processOutbox({store, sender});
+  expect(calls).toBe(1);
+  expect(store.items[0].status).toBe('failed');
+});
+
+test('processOutbox still retries transient 5xx errors', async () => {
+  const store = fakeStore();
+  await store.enqueueOutbox({id: 'o1', payload: {}, sentMessage: {id: 's1'}});
+  store.items[0].status = 'failed';
+  let calls = 0;
+  const sender = {
+    send: async () => {
+      calls += 1;
+      const e = new Error('send failed: 503');
+      e.status = 503;
+      throw e;
+    },
+  };
+  await processOutbox({store, sender});
+  await processOutbox({store, sender});
+  expect(calls).toBe(2); // retried
+});

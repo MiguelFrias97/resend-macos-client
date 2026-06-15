@@ -66,7 +66,19 @@ export function createMailSource({apiKey, fetchImpl} = {}) {
   }
 
   async function downloadBytes(downloadUrl) {
-    const res = await (fetchImpl || fetch)(downloadUrl);
+    // download_url is server-supplied. Require https so a spoofed/MITM'd response
+    // can't redirect the fetch to file:// (local-file read) or an internal host
+    // (SSRF). Resend's presigned download URLs are always https.
+    let parsed;
+    try {
+      parsed = new URL(String(downloadUrl));
+    } catch (e) {
+      throw new Error('downloadBytes: invalid url');
+    }
+    if (parsed.protocol !== 'https:') {
+      throw new Error('downloadBytes: refusing non-https url');
+    }
+    const res = await (fetchImpl || fetch)(parsed.toString());
     if (res.status !== 200) throw new Error(`downloadBytes failed: ${res.status}`);
     return res;
   }

@@ -50,6 +50,22 @@ test('replyHeaders sets In-Reply-To and threads References', () => {
   expect(replyHeaders({rfcMessageId: null, references: []})).toEqual({});
 });
 
+test('replyHeaders rejects header injection in Message-ID and References', () => {
+  // A received Message-ID carrying a CRLF + extra header must not produce a
+  // usable In-Reply-To (it would otherwise inject a Bcc on the outbound side).
+  expect(replyHeaders({rfcMessageId: '<b@y>\r\nBcc: victim@evil.com'})).toEqual({});
+  // A reference entry with a newline is dropped; the clean id still threads.
+  expect(
+    replyHeaders({rfcMessageId: '<b@y>', references: ['<a@x>', '<evil@x>\r\nX: y']}),
+  ).toEqual({'In-Reply-To': '<b@y>', References: '<a@x> <b@y>'});
+});
+
+test('replySubject and extractEmail strip CR/LF (no header smuggling)', () => {
+  expect(replySubject('Deal\r\nBcc: x@y.com')).toBe('Re: DealBcc: x@y.com');
+  expect(replySubject('Deal\r\nBcc: x@y.com')).not.toMatch(/[\r\n]/);
+  expect(extractEmail('a@x.com\r\nBcc: victim@evil.com')).not.toMatch(/[\r\n]/);
+});
+
 test('quoteOriginal wraps the original in a gmail_quote block', () => {
   const q = quoteOriginal({from: 'A <a@x>', receivedAt: '2026-06-12T14:00:00Z'}, '<p>hi</p>');
   expect(q).toContain('gmail_quote');

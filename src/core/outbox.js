@@ -8,8 +8,13 @@ async function attemptSend({store, sender, item}) {
     if (item.sentMessage) await store.insertSentMessage(item.sentMessage);
     return {ok: true, id: res.id};
   } catch (e) {
-    await store.setOutboxStatus(item.id, 'failed', {lastError: e.message, attemptCount: (item.attemptCount || 0) + 1});
-    return {ok: false, error: e};
+    // A 4xx (except 429 rate-limit) is permanent — a bad payload or revoked key
+    // won't succeed on retry, so don't keep firing authenticated requests at it.
+    // Force attemptCount past the cap so processOutbox stops retrying it.
+    const permanent = typeof e.status === 'number' && e.status >= 400 && e.status < 500 && e.status !== 429;
+    const attemptCount = permanent ? Number.MAX_SAFE_INTEGER : (item.attemptCount || 0) + 1;
+    await store.setOutboxStatus(item.id, 'failed', {lastError: e.message, attemptCount});
+    return {ok: false, error: e, permanent};
   }
 }
 

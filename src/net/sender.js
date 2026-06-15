@@ -10,11 +10,16 @@ export function createSender({apiKey, fetchImpl} = {}) {
     if (res.status < 200 || res.status >= 300) {
       let detail = '';
       try {
-        detail = (await res.json()).message || '';
+        // Server message is untrusted and unbounded — cap it before it gets
+        // thrown, persisted to the outbox, and shown in the UI.
+        const msg = (await res.json()).message;
+        detail = typeof msg === 'string' ? msg.slice(0, 300) : '';
       } catch (e) {
         detail = '';
       }
-      throw new Error(`send failed: ${res.status} ${detail}`.trim());
+      const err = new Error(`send failed: ${res.status} ${detail}`.trim());
+      err.status = res.status;
+      throw err;
     }
     return res.json();
   }

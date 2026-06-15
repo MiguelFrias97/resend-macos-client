@@ -96,7 +96,11 @@ export async function createLocalStore(db) {
   }
 
   async function listMessages(filter = 'inbox') {
-    const where = FILTERS[filter] ?? FILTERS.inbox;
+    // `where` is a static SQL fragment interpolated below, so the filter key must
+    // come from the hardcoded FILTERS allowlist — never accept an arbitrary key.
+    const where = Object.prototype.hasOwnProperty.call(FILTERS, filter)
+      ? FILTERS[filter]
+      : FILTERS.inbox;
     const res = await db.execute(
       `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction FROM messages WHERE ${where} ORDER BY received_at DESC`,
     );
@@ -108,9 +112,12 @@ export async function createLocalStore(db) {
   }
 
   async function searchMessages(query) {
-    const like = `%${query}%`;
+    // Escape LIKE wildcards so a query of "%" or "_" matches literally instead of
+    // everything (and can't force a pathological scan). Values are parameterized.
+    const esc = String(query ?? '').replace(/[\\%_]/g, c => `\\${c}`);
+    const like = `%${esc}%`;
     const res = await db.execute(
-      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction FROM messages WHERE direction='received' AND (sender LIKE ? OR subject LIKE ? OR text LIKE ?) ORDER BY received_at DESC`,
+      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction FROM messages WHERE direction='received' AND (sender LIKE ? ESCAPE '\\' OR subject LIKE ? ESCAPE '\\' OR text LIKE ? ESCAPE '\\') ORDER BY received_at DESC`,
       [like, like, like],
     );
     return res.rows.map(mapRow);
@@ -124,7 +131,13 @@ export async function createLocalStore(db) {
     return res.rows.map(mapRow);
   }
 
+  // Column names can't be parameterized, so the column is interpolated — gate it
+  // behind a fixed allowlist so this can never become an injection sink.
+  const FLAG_COLUMNS = new Set(['seen', 'starred', 'archived']);
   async function setFlag(column, id, value) {
+    if (!FLAG_COLUMNS.has(column)) {
+      throw new Error(`setFlag: invalid column ${column}`);
+    }
     await db.execute(`UPDATE messages SET ${column}=? WHERE id=?`, [
       value ? 1 : 0,
       id,

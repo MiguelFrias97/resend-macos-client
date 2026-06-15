@@ -5,9 +5,11 @@ export function createResendClient({apiKey, fetchImpl = fetch} = {}) {
     const res = await fetchImpl(`${BASE}${path}`, {
       method,
       headers: {
+        // Caller headers first so the bearer credential and content-type below
+        // can't be clobbered (e.g. a stray Authorization override).
+        ...(headers || {}),
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        ...(headers || {}),
       },
       body: body ? JSON.stringify(body) : undefined,
     });

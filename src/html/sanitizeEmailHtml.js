@@ -30,8 +30,15 @@ const SAFE_STYLES = {
 // WebKit CSP blocks remote image/font loads unless the user opts in.
 function contentSecurityPolicy(allowRemote) {
   const img = allowRemote ? 'cidcache: data: https:' : 'cidcache: data:';
-  const font = allowRemote ? 'font-src data: https:' : 'font-src data:';
-  return `default-src 'none'; script-src 'none'; img-src ${img}; style-src 'unsafe-inline'; ${font}`;
+  // Remote fonts have no legitimate use in mail and are an exfil/fingerprint
+  // vector, so font-src stays data:-only even when remote images are allowed.
+  // base-uri/object-src/form-action are set explicitly rather than leaning on
+  // the default-src 'none' fallback across WebKit versions.
+  return (
+    `default-src 'none'; script-src 'none'; img-src ${img}; ` +
+    `style-src 'unsafe-inline'; font-src data:; ` +
+    `object-src 'none'; base-uri 'none'; form-action 'none'`
+  );
 }
 
 export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
