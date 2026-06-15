@@ -71,9 +71,25 @@ npm install
 
 ## Run
 
+Two workflows depending on what you're doing:
+
+**Develop** — fast iteration with live reload (needs Metro running):
+
 ```bash
-npm run macos                  # builds + launches the macOS app
+npm run macos                  # builds Debug + launches, JS hot-reloads on save
 ```
+
+**Install as a real app** — a standalone Release build (JS bundle embedded, no Metro)
+copied into `/Applications`, so you can launch it from Launchpad/Spotlight like any app:
+
+```bash
+npm run install:macos          # build Release + install to /Applications
+```
+
+Re-run `npm run install:macos` whenever you change the code to **update** the installed
+app (it replaces the prior copy). The app is ad-hoc signed and runs on this machine only —
+this is the local equivalent of a release; a signed/notarized distributable is a deferred
+follow-up.
 
 On first launch, paste your Resend API key (stored in the macOS Keychain). The app verifies it,
 then starts syncing your received mail.
@@ -89,10 +105,10 @@ xcodebuild -workspace macos/ResendMail.xcworkspace -scheme ResendMail-macOS -con
 
 ## CI
 
-`.github/workflows/ci.yml` runs ESLint + Jest on every push/PR; a best-effort
-macOS build job also runs (informational — runners may lag the project's Xcode).
-Builds are local for now (`npm run macos`); a signed/notarized release path is a
-deferred follow-up.
+`.github/workflows/ci.yml` runs ESLint + Jest on every push/PR. There's no native
+build job — hosted runners ship an older Xcode than react-native-macos requires.
+Builds are local (`npm run macos` to develop, `npm run install:macos` to install);
+a signed/notarized release path is a deferred follow-up.
 
 ## API reconciliation
 
