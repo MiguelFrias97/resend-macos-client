@@ -42,9 +42,13 @@ export PATH="$(dirname "$NODE_BIN"):$PATH"
 export NODE_BINARY="$NODE_BIN"
 echo "==> Using node $("$NODE_BIN" -v) at $NODE_BIN"
 
-# Pods must exist (and be current) before an xcodebuild on the workspace.
-if [ ! -d "macos/Pods" ]; then
-  echo "==> Installing pods (first run)"
+# Pods + RN codegen output must exist before an xcodebuild on the workspace.
+# `npm run clean:macos` deletes macos/build (which holds build/generated/ios/*
+# codegen), so re-run pod install whenever Pods OR that codegen is missing —
+# otherwise the build fails with "Build input file cannot be found" for the
+# generated ReactCodegen sources.
+if [ ! -d "macos/Pods" ] || [ ! -d "macos/build/generated/ios" ]; then
+  echo "==> Installing pods (regenerates RN codegen)"
   ( cd macos && pod install )
 fi
 
