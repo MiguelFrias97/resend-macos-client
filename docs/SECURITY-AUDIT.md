@@ -89,9 +89,25 @@ The local SQLite cache is now **encrypted at rest with SQLCipher**:
   cache is disposable — rebuilt from Resend on the next sync), so no plaintext mail
   lingers on disk.
 
-This removes the previously-documented plaintext-at-rest residual; with the
-existing App Sandbox + `ThisDeviceOnly` Keychain, the offline-disk / backup /
-malware-as-user read vectors are now closed.
+This removes the previously-documented plaintext-at-rest residual. SQLCipher is
+now the primary at-rest protection and does not depend on the App Sandbox.
+
+**Build-signing note (correcting earlier rounds):** earlier sections cited the
+App Sandbox as a compensating control. That holds for a **signed/notarized**
+release (the `app-sandbox` entitlement is declared in
+`macos/ResendMail-macOS/ResendMail.entitlements`), but the **local `install:macos`
+build is ad-hoc / unsigned (`CODE_SIGNING_ALLOWED=NO`), so no entitlements are
+applied — that build is *not* sandboxed**, and its cache lives under the user's
+home Library rather than a sandbox container. SQLCipher protects the cache at rest
+in both cases.
+
+**Keychain access on reinstall:** because the local build is ad-hoc signed (no
+stable code identity), macOS may prompt to allow Keychain access after a reinstall
+(both the API key and the DB key). The DB-key bootstrap treats *absent* (first run)
+and *access-denied* differently: an absent key mints a new one; a denied read
+raises `KeychainAccessError` so the UI shows a clear "couldn't unlock your local
+cache — Retry" screen instead of hanging or silently orphaning the encrypted DB.
+The cache is disposable (rebuilt from Resend), so no real mail is ever lost.
 
 ## Residual / accepted
 
