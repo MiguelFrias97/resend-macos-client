@@ -19,6 +19,29 @@ DEST="/Applications"
 
 command -v xcodebuild >/dev/null 2>&1 || { echo "xcodebuild not found — install Xcode" >&2; exit 1; }
 
+# Xcode's Release "Bundle React Native code" phase runs metro with a bare `node`
+# from the inherited PATH (it ignores .xcode.env / NODE_BINARY). metro needs
+# util.styleText, added in Node 20.12 — nvm's default is often older. Activate
+# the version in .nvmrc (22), verify styleText exists, and put it first on PATH
+# so both `node` and $NODE_BINARY resolve to it.
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+# shellcheck disable=SC1091
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+if command -v nvm >/dev/null 2>&1; then
+  nvm use >/dev/null 2>&1 || nvm use 22 >/dev/null 2>&1 || true
+fi
+NODE_BIN="$(command -v node || true)"
+[ -n "$NODE_BIN" ] || { echo "node not found on PATH" >&2; exit 1; }
+if ! "$NODE_BIN" -e 'process.exit(typeof require("util").styleText==="function"?0:1)'; then
+  echo "Node at $NODE_BIN ($("$NODE_BIN" -v)) lacks util.styleText (need >= 20.12)." >&2
+  echo "Install/activate Node 22, e.g.:  nvm install 22 && nvm use 22" >&2
+  echo "(or set it as default:  nvm alias default 22)" >&2
+  exit 1
+fi
+export PATH="$(dirname "$NODE_BIN"):$PATH"
+export NODE_BINARY="$NODE_BIN"
+echo "==> Using node $("$NODE_BIN" -v) at $NODE_BIN"
+
 # Pods must exist (and be current) before an xcodebuild on the workspace.
 if [ ! -d "macos/Pods" ]; then
   echo "==> Installing pods (first run)"
