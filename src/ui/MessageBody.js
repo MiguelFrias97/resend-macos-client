@@ -3,6 +3,7 @@ import {View, Text, ActivityIndicator} from 'react-native';
 import MessageBodyView from '../native/MessageBodyView';
 import {sanitizeEmailHtml} from '../html/sanitizeEmailHtml';
 import {useTheme} from './useTheme';
+import {SP} from './designTokens';
 
 export default function MessageBody({messageId, allowRemote = false, deps}) {
   const theme = useTheme();
@@ -59,7 +60,7 @@ export default function MessageBody({messageId, allowRemote = false, deps}) {
   }
   return (
     <MessageBodyView
-      style={{flex: 1}}
+      style={{flex: 1, maxWidth: 600, marginTop: SP(3.25), marginLeft: 45}}
       html={sanitizeEmailHtml(html, {allowRemote})}
       allowRemote={allowRemote}
       cacheDir={cacheDir}

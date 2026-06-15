@@ -3,6 +3,7 @@ import {View, Text, Pressable} from 'react-native';
 import Composer from './Composer';
 import {assembleReplyPayload} from '../reply/assembleReply';
 import {useTheme} from './useTheme';
+import {SP, RADIUS, TYPE} from './designTokens';
 
 export default function ReplyComposer({original, originalHtml, onSend}) {
   const theme = useTheme();
@@ -39,34 +40,49 @@ export default function ReplyComposer({original, originalHtml, onSend}) {
   };
 
   return (
-    <View style={{borderTopWidth: 1, borderTopColor: theme.divider, backgroundColor: theme.bg}}>
-      <View style={{height: 180}}>
+    <View
+      style={{
+        borderTopWidth: 1,
+        borderTopColor: theme.divider,
+        backgroundColor: theme.bg,
+        padding: SP(3),
+      }}>
+      <View style={{minHeight: 80}}>
         <Composer onChange={handleChange} />
       </View>
-      <View style={{flexDirection: 'row', alignItems: 'center', padding: 8}}>
-        <Pressable
-          onPress={send}
-          disabled={status === 'sending'}
-          style={{
-            backgroundColor: theme.selectedBg,
-            borderRadius: 6,
-            paddingVertical: 6,
-            paddingHorizontal: 16,
-          }}>
-          <Text style={{color: theme.accent, fontWeight: '600'}}>
-            {status === 'sending' ? 'Sending…' : 'Send'}
-          </Text>
-        </Pressable>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: SP(2),
+          marginTop: SP(2.5),
+        }}>
         {status === 'sent' ? (
-          <Text style={{marginLeft: 12, color: '#2a8a3e'}}>Sent</Text>
+          <Text style={{...TYPE.meta, color: theme.success}}>Sent</Text>
         ) : null}
         {status === 'failed' ? (
-          <Pressable onPress={send} style={{marginLeft: 12}}>
-            <Text style={{color: theme.danger}}>
+          <Pressable onPress={send}>
+            <Text style={{...TYPE.meta, color: theme.danger}}>
               {errorText ? `${errorText} — Retry` : 'Failed — Retry'}
             </Text>
           </Pressable>
         ) : null}
+        <Pressable
+          onPress={send}
+          disabled={status === 'sending'}
+          style={{
+            height: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: SP(4),
+            borderRadius: RADIUS.sm,
+            backgroundColor: theme.accent,
+          }}>
+          <Text style={{...TYPE.button, color: '#fff'}}>
+            {status === 'sending' ? 'Sending…' : 'Send'}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );

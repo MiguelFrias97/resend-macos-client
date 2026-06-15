@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import {View, Text, TextInput, Pressable} from 'react-native';
 import {useTheme} from './useTheme';
 import {isEmail} from '../compose/assembleCompose';
+import {SP, RADIUS, TYPE} from './designTokens';
 
 // A recipient input that turns typed addresses into removable chips. `value` is
 // an array of address strings; `onChange` reports the new array. Invalid
@@ -41,32 +42,39 @@ export default function RecipientField({label, placeholder, value = [], onChange
         flexDirection: 'row',
         flexWrap: 'wrap',
         alignItems: 'center',
+        gap: SP(1.5),
+        minHeight: 38,
         borderBottomWidth: 1,
         borderBottomColor: theme.divider,
-        paddingVertical: 6,
-        paddingHorizontal: 8,
+        paddingVertical: SP(1),
+        paddingHorizontal: SP(2),
       }}>
       {label ? (
-        <Text style={{color: theme.textMuted, marginRight: 6}}>{label}</Text>
+        <Text style={{...TYPE.meta, width: 56, color: theme.textMuted}}>{label}</Text>
       ) : null}
-      {value.map((addr, i) => (
-        <Pressable
-          key={`${addr}-${i}`}
-          accessibilityLabel={`Remove ${addr}`}
-          onPress={() => remove(i)}
-          style={{
-            backgroundColor: theme.selectedBg,
-            borderRadius: 10,
-            paddingVertical: 2,
-            paddingHorizontal: 8,
-            marginRight: 4,
-            marginVertical: 2,
-          }}>
-          <Text style={{color: isEmail(addr) ? theme.accent : theme.danger}}>
-            {addr} ✕
-          </Text>
-        </Pressable>
-      ))}
+      {value.map((addr, i) => {
+        const valid = isEmail(addr);
+        return (
+          <Pressable
+            key={`${addr}-${i}`}
+            accessibilityLabel={`Remove ${addr}`}
+            onPress={() => remove(i)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: SP(1),
+              height: 22,
+              paddingHorizontal: SP(2),
+              borderRadius: RADIUS.pill,
+              backgroundColor: valid ? theme.accent + '1A' : theme.danger + '1A',
+            }}>
+            <Text
+              style={{fontSize: 12.5, color: valid ? theme.accent : theme.danger}}>
+              {valid ? `${addr} ✕` : `⚠ ${addr} ✕`}
+            </Text>
+          </Pressable>
+        );
+      })}
       <TextInput
         placeholder={value.length ? '' : placeholder || label}
         placeholderTextColor={theme.textMuted}
@@ -75,7 +83,7 @@ export default function RecipientField({label, placeholder, value = [], onChange
         onSubmitEditing={() => commit(text)}
         onBlur={() => commit(text)}
         autoCapitalize="none"
-        style={{flex: 1, minWidth: 120, color: theme.text, padding: 2}}
+        style={{flex: 1, minWidth: 120, ...TYPE.meta, color: theme.text}}
       />
     </View>
   );

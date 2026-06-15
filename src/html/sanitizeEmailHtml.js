@@ -81,9 +81,34 @@ export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
     },
   });
   const csp = contentSecurityPolicy(allowRemote);
+  // Presentational base CSS for the rendered mail body, from the Claude Design
+  // spec. Static light-mode-safe values are used because this function has no
+  // theme access today; a theme object can be threaded through later to make
+  // these dynamic.
+  //
+  // NOTE: this stylesheet is injected as an inline `style` attribute on a
+  // wrapper element rather than as a <style> element on purpose — embedded
+  // <style> blocks are stripped from untrusted mail (and the test suite asserts
+  // no <style> tag appears in the output), so the only safe place for our own
+  // presentational rules is an inline attribute on the trusted wrapper. The
+  // selector-based niceties (p/a/blockquote/pre spacing, link color, etc.) are
+  // therefore expressed as a class hook plus the body-level rules we can set
+  // inline; richer rules can move to a CSP-nonce'd <style> if/when the test
+  // contract is relaxed.
+  const bodyStyle = [
+    'margin:0',
+    "font:15px/1.55 -apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif",
+    'color:#1d1d1f',
+    'background:#ffffff',
+    'word-wrap:break-word',
+    '-webkit-text-size-adjust:100%',
+  ].join(';');
+  const contentStyle = 'max-width:600px;padding:0';
   return (
     '<!DOCTYPE html><html><head><meta charset="utf-8">' +
     `<meta http-equiv="Content-Security-Policy" content="${csp}">` +
-    `</head><body>${body}</body></html>`
+    `</head><body style="${bodyStyle}">` +
+    `<div class="mail-content" style="${contentStyle}">${body}</div>` +
+    '</body></html>'
   );
 }
