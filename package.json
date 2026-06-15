@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
+    "clean:macos": "bash scripts/clean-local.sh",
     "ios": "react-native run-ios",
     "install:macos": "bash scripts/install-local.sh",
     "lint": "eslint .",
