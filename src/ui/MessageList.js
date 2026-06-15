@@ -23,7 +23,7 @@ export default function MessageList({messages, onSelect, selectedId, onToggleSta
             backgroundColor:
               item.id === selectedId ? theme.selectedBg : 'transparent',
           }}>
-          {!item.seen ? (
+          {!item.seen && item.direction !== 'sent' ? (
             <View
               testID="unread-dot"
               style={{
@@ -43,20 +43,24 @@ export default function MessageList({messages, onSelect, selectedId, onToggleSta
             </View>
             <Text numberOfLines={1} style={{color: theme.textMuted}}>{item.subject}</Text>
           </Pressable>
-          <Pressable
-            accessibilityLabel={`Star ${item.subject}`}
-            onPress={() => onToggleStar && onToggleStar(item)}
-            style={{paddingHorizontal: 8, paddingVertical: 8}}>
-            <Text style={{color: item.starred ? '#e0a800' : theme.textMuted, fontSize: 16}}>
-              {item.starred ? '★' : '☆'}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel={`Archive ${item.subject}`}
-            onPress={() => onArchive && onArchive(item)}
-            style={{paddingHorizontal: 8, paddingVertical: 8}}>
-            <Text style={{color: theme.textMuted, fontSize: 16}}>🗀</Text>
-          </Pressable>
+          {item.direction !== 'sent' ? (
+            <>
+              <Pressable
+                accessibilityLabel={`Star ${item.subject}`}
+                onPress={() => onToggleStar && onToggleStar(item)}
+                style={{paddingHorizontal: 8, paddingVertical: 8}}>
+                <Text style={{color: item.starred ? '#e0a800' : theme.textMuted, fontSize: 16}}>
+                  {item.starred ? '★' : '☆'}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel={`Archive ${item.subject}`}
+                onPress={() => onArchive && onArchive(item)}
+                style={{paddingHorizontal: 8, paddingVertical: 8}}>
+                <Text style={{color: theme.textMuted, fontSize: 16}}>🗀</Text>
+              </Pressable>
+            </>
+          ) : null}
         </View>
       )}
     />

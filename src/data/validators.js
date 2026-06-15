@@ -45,16 +45,36 @@ export function validateAttachmentMeta(raw) {
   };
 }
 
+// Look up a header value case-insensitively (Resend returns a headers object).
+function header(headers, name) {
+  if (!headers || typeof headers !== 'object') return null;
+  const want = name.toLowerCase();
+  for (const k of Object.keys(headers)) {
+    if (k.toLowerCase() === want) return headers[k];
+  }
+  return null;
+}
+
+// In-Reply-To is a single Message-ID; coerce an array form to its first entry.
+function firstHeaderValue(v) {
+  return Array.isArray(v) ? v[0] || null : v || null;
+}
+
 export function validateReceivedEmailContent(raw) {
   const id = req(raw, 'id');
   const attachments = Array.isArray(raw.attachments)
     ? raw.attachments.map(validateAttachmentMeta)
     : [];
+  const headers = raw.headers && typeof raw.headers === 'object' ? raw.headers : {};
   return {
     id,
     html: typeof raw.html === 'string' ? raw.html : null,
     text: typeof raw.text === 'string' ? raw.text : null,
-    headers: raw.headers && typeof raw.headers === 'object' ? raw.headers : {},
+    headers,
+    // The reply headers live here (the list endpoint omits them) — used to
+    // group a thread by RFC Message-ID once a body is retrieved.
+    inReplyTo: firstHeaderValue(header(headers, 'in-reply-to') || raw.in_reply_to),
+    references: toRefArray(header(headers, 'references') || raw.references),
     attachments,
   };
 }

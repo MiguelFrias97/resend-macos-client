@@ -1,5 +1,12 @@
 import {extractEmail, quoteOriginal, inlineAttachmentParts} from '../reply/assembleReply';
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Shared so the recipient chips and the send-time validation never disagree.
+export function isEmail(addr) {
+  return EMAIL.test(addr || '');
+}
+
 export function parseRecipients(value) {
   // Accept an array (from the recipient token field) or a string (split on
   // comma/semicolon — pasted lists often use ';').

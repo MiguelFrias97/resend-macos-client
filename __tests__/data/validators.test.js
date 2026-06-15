@@ -36,6 +36,18 @@ test('normalizes whitespace-separated references string to an array', () => {
   expect(out.references).toEqual(['<root@x>', '<mid@x>', '<last@x>']);
 });
 
+test('validateReceivedEmailContent extracts in-reply-to/references from headers (case-insensitive)', () => {
+  const out = validateReceivedEmailContent({
+    id: 'm',
+    html: '<p>x</p>',
+    text: 'x',
+    headers: {'In-Reply-To': '<a@x>', References: '<root@x> <a@x>'},
+    attachments: [],
+  });
+  expect(out.inReplyTo).toBe('<a@x>');
+  expect(out.references).toEqual(['<root@x>', '<a@x>']);
+});
+
 test('validateReceivedEmailContent normalizes body + headers + attachments', () => {
   const out = validateReceivedEmailContent({
     id: 'recv_1',

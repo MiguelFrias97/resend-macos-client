@@ -20,6 +20,7 @@ import {startSyncLoop} from '../core/sync';
 import {sendReply, processOutbox} from '../core/outbox';
 import {clearApiKey} from '../native/Keychain';
 import {replyPayloadError} from '../reply/assembleReply';
+import {isEmail} from '../compose/assembleCompose';
 import {
   sanitizeFilename,
   isDangerousFilename,
@@ -158,7 +159,17 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     const {store, source} = servicesRef.current;
     return {
       getMessage: id => store.getMessage(id),
-      fetchBody: id => source.getReceivedEmail(id),
+      fetchBody: async id => {
+        const content = await source.getReceivedEmail(id);
+        // The retrieved headers expose In-Reply-To/References (the list endpoint
+        // doesn't), so re-thread this message into its parent's conversation.
+        try {
+          await store.rethreadByHeaders(id, content.inReplyTo, content.references);
+        } catch (e) {
+          // best-effort threading; never block rendering the body
+        }
+        return content;
+      },
       saveBody: (id, b) => store.saveBody(id, b),
       saveAttachments: (id, a) => store.saveAttachments(id, a),
       cacheCidImages: async id => {
@@ -203,7 +214,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     setSelected(msg);
     selectedRef.current = msg;
     const {store} = servicesRef.current;
-    if (!msg.seen) {
+    if (!msg.seen && msg.direction !== 'sent') {
       await store.setSeen(msg.id, true);
     }
     const t = await store.listThread(msg.threadId);
@@ -237,6 +248,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
         if (fetched.attachments && fetched.attachments.length) {
           await store.saveAttachments(id, fetched.attachments);
         }
+        store.rethreadByHeaders(id, fetched.inReplyTo, fetched.references).catch(() => {});
         msg = {...msg, html: fetched.html};
       } catch (e) {
         // Network issue — fall back to whatever we have.
@@ -270,10 +282,9 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     if (onSignOut) onSignOut();
   };
 
-  // Compose/forward both send through the outbox; no thread, no sent-message row.
+  // Compose/forward send through the outbox and are recorded in Sent.
   const onSendMail = async payload => {
     const recipients = Array.isArray(payload.to) ? payload.to : [];
-    const isEmail = a => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a || '');
     if (!isEmail(payload.from)) {
       return {ok: false, error: new Error('Enter a valid From address.')};
     }
@@ -282,7 +293,23 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     }
     const {store, sender} = servicesRef.current;
     const id = `out_${Math.random().toString(36).slice(2)}`;
-    return sendReply({store, sender, id, payload});
+    // Give it its own thread so it shows (and opens) in the Sent folder.
+    const sentMessage = {
+      id: `sent_${id}`,
+      threadId: `t_${id}`,
+      from: payload.from,
+      subject: payload.subject,
+      receivedAt: new Date().toISOString(),
+      html: payload.html,
+    };
+    return sendReply({
+      store,
+      sender,
+      id,
+      threadId: sentMessage.threadId,
+      payload,
+      sentMessage,
+    });
   };
 
   const startForward = async () => {

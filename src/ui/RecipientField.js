@@ -1,8 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, Pressable} from 'react-native';
 import {useTheme} from './useTheme';
-
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import {isEmail} from '../compose/assembleCompose';
 
 // A recipient input that turns typed addresses into removable chips. `value` is
 // an array of address strings; `onChange` reports the new array. Invalid
@@ -21,8 +20,17 @@ export default function RecipientField({label, placeholder, value = [], onChange
   };
 
   const handleChange = t => {
-    if (/[,;]/.test(t)) commit(t);
-    else setText(t);
+    if (/[,;]/.test(t)) {
+      // Commit only the tokens before a separator; keep the in-progress trailing
+      // token in the field (don't yank a half-typed address into a chip).
+      const segments = t.split(/[,;]/);
+      const tail = segments.pop();
+      const ready = segments.map(s => s.trim()).filter(Boolean);
+      if (ready.length) onChange([...value, ...ready]);
+      setText(tail);
+    } else {
+      setText(t);
+    }
   };
 
   const remove = i => onChange(value.filter((_, idx) => idx !== i));
@@ -54,7 +62,7 @@ export default function RecipientField({label, placeholder, value = [], onChange
             marginRight: 4,
             marginVertical: 2,
           }}>
-          <Text style={{color: EMAIL.test(addr) ? theme.accent : theme.danger}}>
+          <Text style={{color: isEmail(addr) ? theme.accent : theme.danger}}>
             {addr} ✕
           </Text>
         </Pressable>
