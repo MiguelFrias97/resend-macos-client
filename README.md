@@ -87,9 +87,13 @@ npm run install:macos          # build Release + install to /Applications
 ```
 
 Re-run `npm run install:macos` whenever you change the code to **update** the installed
-app (it replaces the prior copy). The app is ad-hoc signed and runs on this machine only —
-this is the local equivalent of a release; a signed/notarized distributable is a deferred
-follow-up.
+app (it replaces the prior copy — `/Applications` never accumulates extra copies). The app
+is ad-hoc signed and runs on this machine only — this is the local equivalent of a release;
+a signed/notarized distributable is a deferred follow-up.
+
+The installed app is ~36 MB. The build keeps a local cache (`macos/build`, several GB) that
+makes incremental rebuilds fast. Reclaim it anytime with `npm run clean:macos` (the next
+build is then a slower full rebuild; the installed app is untouched).
 
 On first launch, paste your Resend API key (stored in the macOS Keychain). The app verifies it,
 then starts syncing your received mail.
