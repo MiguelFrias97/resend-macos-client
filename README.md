@@ -87,13 +87,12 @@ npx eslint .                   # lint
 xcodebuild -workspace macos/ResendMail.xcworkspace -scheme ResendMail-macOS -configuration Debug build
 ```
 
-## CI & releasing
+## CI
 
-- **CI** (`.github/workflows/ci.yml`) runs ESLint + Jest on every push/PR; a
-  best-effort macOS build job also runs (informational — runners may lag the
-  project's Xcode).
-- **Releasing** a signed, notarized `.dmg`: `scripts/build-release.sh` +
-  `docs/RELEASE.md` (needs an Apple Developer account + Team ID).
+`.github/workflows/ci.yml` runs ESLint + Jest on every push/PR; a best-effort
+macOS build job also runs (informational — runners may lag the project's Xcode).
+Builds are local for now (`npm run macos`); a signed/notarized release path is a
+deferred follow-up.
 
 ## API reconciliation
 
