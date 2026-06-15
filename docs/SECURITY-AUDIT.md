@@ -73,6 +73,26 @@ relying solely on the CSP backstop.
 **Outcome:** two independent graders scored the hardened code **A / A−** with no
 A−-blocking issues.
 
+## Round 3 — at-rest encryption (closes the last residual)
+
+The local SQLite cache is now **encrypted at rest with SQLCipher**:
+
+- op-sqlite is built with SQLCipher (`"op-sqlite": {"sqlcipher": true}` in
+  `package.json`).
+- The encryption key is a **CSPRNG** value (`SecRandomCopyBytes`, 32 bytes)
+  generated on first run and stored in its own **Keychain** item
+  (`com.resendmail.dbkey`, `WhenUnlockedThisDeviceOnly` — same as the API key, no
+  iCloud sync). It never touches disk in plaintext.
+- `openEncryptedDb` opens the cache with the key and **fails closed** if the
+  native build doesn't actually link SQLCipher (no silent fallback to plaintext).
+- A pre-encryption plaintext cache is migrated by dropping and recreating it (the
+  cache is disposable — rebuilt from Resend on the next sync), so no plaintext mail
+  lingers on disk.
+
+This removes the previously-documented plaintext-at-rest residual; with the
+existing App Sandbox + `ThisDeviceOnly` Keychain, the offline-disk / backup /
+malware-as-user read vectors are now closed.
+
 ## Residual / accepted
 
 - With "Load images" enabled, remote `https:` images load (the intended opt-in) —
@@ -82,15 +102,9 @@ A−-blocking issues.
   malicious server). Low impact given the trusted Resend host over TLS.
 - `verifyApiKey` returns `false` for both a bad key and a network failure (a UX
   nicety, not a security issue).
-- **Cached mail is stored in a plaintext SQLite file** (op-sqlite, pure-SQLite
-  build). The API key itself is never in the DB (Keychain-only), but message
-  bodies/subjects/senders are cached locally. Compensating controls: the app is
-  **App-Sandboxed** (its container isn't readable by other sandboxed apps), the
-  Mac's disk is encrypted at rest by **FileVault** (on by default on modern
-  Macs), and the Keychain secret is `ThisDeviceOnly`. This matches the posture of
-  Apple Mail's local store. Full at-rest DB encryption (SQLCipher keyed from the
-  Keychain) is a planned enhancement; it needs a SQLCipher-enabled native build
-  and a key-bootstrap/migration step, tracked separately.
+- ~~Cached mail is stored in a plaintext SQLite file.~~ **Fixed in round 3** —
+  the cache is now SQLCipher-encrypted with a Keychain-stored CSPRNG key (see
+  above).
 - The `localhost` ATS exception (needed by the Metro dev server) permits cleartext
   HTTP only to `localhost`; the SSRF chain that relied on it is closed by the
   redirect-blocking fix (#12), so the exception is no longer reachable as a vector.

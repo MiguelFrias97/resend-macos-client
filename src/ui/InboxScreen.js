@@ -13,7 +13,7 @@ import {useTheme} from './useTheme';
 import {setOverride} from './themeOverride';
 import {notify} from '../native/Notifications';
 import {createLocalStore} from '../data/localStore';
-import {openDb} from '../data/db';
+import {openEncryptedDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
 import {createSender} from '../net/sender';
 import {startSyncLoop} from '../core/sync';
@@ -75,7 +75,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     (async () => {
       const store = makeStore
         ? await makeStore()
-        : await createLocalStore(openDb());
+        : await createLocalStore(await openEncryptedDb());
       const source = makeSource ? makeSource() : createMailSource({apiKey});
       const sender = createSender({apiKey});
       if (cancelled) return;

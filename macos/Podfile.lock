@@ -15,6 +15,7 @@ PODS:
     - fmt
     - glog
     - hermes-engine
+    - OpenSSL-Universal
     - RCT-Folly
     - RCT-Folly/Fabric
     - RCTRequired
@@ -36,6 +37,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - OpenSSL-Universal (3.6.2000)
   - RCT-Folly (2024.11.18.00):
     - boost
     - DoubleConversion
@@ -2451,6 +2453,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - OpenSSL-Universal
     - SocketRocket
 
 EXTERNAL SOURCES:
@@ -2610,7 +2613,8 @@ SPEC CHECKSUMS:
   fmt: 24e7591456deb60b4a77518f83d9a916ac84223f
   glog: 0b31c25149b9d350b2666c7d459229861a00ec07
   hermes-engine: 7219f6e751ad6ec7f3d7ec121830ee34dae40749
-  op-sqlite: 2e91234191428efa950687da53927a1070968566
+  op-sqlite: 91d93f6823092efebc0d11c5b58a057a5a186b25
+  OpenSSL-Universal: ecee7b138fa75a74ecf00d7ffd248fb584739b9e
   RCT-Folly: c803cf33238782d5fd21a5e02d44f64068e0e130
   RCTDeprecation: 32fb5034012098ad1f67eba8a62d73bdd7d082e7
   RCTRequired: 9f51919b547926d0c148032cf2a7271a37655af4

@@ -2,6 +2,9 @@
   "name": "ResendMail",
   "version": "0.0.1",
   "private": true,
+  "op-sqlite": {
+    "sqlcipher": true
+  },
   "scripts": {
     "android": "react-native run-android",
     "clean:macos": "bash scripts/clean-local.sh",
