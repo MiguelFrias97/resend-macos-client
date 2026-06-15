@@ -351,6 +351,8 @@ export default function InboxScreen({apiKey, makeStore, makeSource}) {
         return 'No starred messages';
       case 'archive':
         return 'No archived messages';
+      case 'sent':
+        return 'No sent messages';
       default:
         return 'Your inbox is empty';
     }

@@ -6,6 +6,7 @@ const FILTERS = [
   {key: 'inbox', label: 'Inbox'},
   {key: 'unread', label: 'Unread'},
   {key: 'starred', label: 'Starred'},
+  {key: 'sent', label: 'Sent'},
   {key: 'archive', label: 'Archive'},
 ];
 
