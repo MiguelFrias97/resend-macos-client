@@ -32,6 +32,7 @@ const FILTERS = {
   unread: `direction='received' AND archived=0 AND seen=0`,
   starred: `direction='received' AND starred=1 AND archived=0`,
   archive: `direction='received' AND archived=1`,
+  sent: `direction='sent'`,
 };
 
 function mapRow(r) {

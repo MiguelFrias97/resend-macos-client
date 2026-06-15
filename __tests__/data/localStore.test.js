@@ -122,6 +122,9 @@ function makeFakeDb() {
         const r = rows.find(x => x.id === id);
         return {rows: r ? [r] : []};
       }
+      if (/FROM messages WHERE direction='sent'/i.test(sql)) {
+        return {rows: rows.filter(r => r.direction === 'sent').sort((a, b) => (a.received_at < b.received_at ? 1 : -1))};
+      }
       if (/FROM messages WHERE direction='received'/i.test(sql)) {
         let filtered;
         if (/archived=0 AND seen=0/i.test(sql)) {
@@ -142,6 +145,14 @@ function makeFakeDb() {
     },
   };
 }
+
+test("listMessages('sent') returns sent messages", async () => {
+  const store = await createLocalStore(makeFakeDb());
+  await store.upsertMessage({id: 'r1', threadId: 't1', from: 'A', subject: 'Hi', receivedAt: '2026-06-12T10:00:00Z'});
+  await store.insertSentMessage({id: 's1', threadId: 't1', from: 'me', subject: 'Re: Hi', receivedAt: '2026-06-12T11:00:00Z', html: '<p>x</p>'});
+  expect((await store.listMessages('sent')).map(m => m.id)).toEqual(['s1']);
+  expect((await store.listMessages('inbox')).map(m => m.id)).toEqual(['r1']);
+});
 
 test('settings round-trip (from identity)', async () => {
   const store = await createLocalStore(makeFakeDb());
