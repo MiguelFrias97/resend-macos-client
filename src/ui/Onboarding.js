@@ -32,7 +32,10 @@ export default function Onboarding({onComplete, deps = {}}) {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [reveal, setReveal] = useState(false);
+  // Default to revealed: macOS NSSecureTextField (secureTextEntry) does not
+  // reliably report pasted text via onChangeText, so masking by default made the
+  // field capture an empty key. The user can still Hide it.
+  const [reveal, setReveal] = useState(true);
 
   async function connect() {
     setBusy(true);
