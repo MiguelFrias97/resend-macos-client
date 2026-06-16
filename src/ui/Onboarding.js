@@ -32,6 +32,7 @@ export default function Onboarding({onComplete, deps = {}}) {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [reveal, setReveal] = useState(false);
 
   async function connect() {
     setBusy(true);
@@ -46,7 +47,9 @@ export default function Onboarding({onComplete, deps = {}}) {
     if (!ok) {
       const status = (result && result.status) || 0;
       const reason = (result && result.reason) || '';
-      setError(verifyErrorMessage(status, reason));
+      // Append what the field actually captured — if this length doesn't match
+      // the real key, the masked field mangled the paste (the likely culprit).
+      setError(`${verifyErrorMessage(status, reason)} (captured ${cleanKey.length} chars)`);
       setBusy(false);
       return;
     }
@@ -85,7 +88,9 @@ export default function Onboarding({onComplete, deps = {}}) {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           autoCapitalize="none"
-          secureTextEntry
+          autoCorrect={false}
+          spellCheck={false}
+          secureTextEntry={!reveal}
           style={{
             height: 36,
             borderRadius: RADIUS.sm,
@@ -99,6 +104,13 @@ export default function Onboarding({onComplete, deps = {}}) {
             marginTop: SP(4),
           }}
         />
+        <Pressable
+          onPress={() => setReveal(r => !r)}
+          style={{alignSelf: 'flex-end', marginTop: SP(1.5)}}>
+          <Text style={{...TYPE.meta, color: theme.accent}}>
+            {reveal ? 'Hide' : 'Show'}
+          </Text>
+        </Pressable>
         {error ? (
           <Text style={{...TYPE.meta, color: theme.danger, marginTop: SP(1.5)}}>
             {error}
