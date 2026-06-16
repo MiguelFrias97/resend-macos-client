@@ -76,7 +76,7 @@ export default function RecipientField({label, placeholder, value = [], onChange
         );
       })}
       <TextInput
-        placeholder={value.length ? '' : placeholder || label}
+        placeholder={value.length ? '' : placeholder || ''}
         placeholderTextColor={theme.textMuted}
         value={text}
         onChangeText={handleChange}

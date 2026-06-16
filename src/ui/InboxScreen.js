@@ -607,6 +607,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
                 <ReplyComposer
                   original={selected}
                   originalHtml={originalHtml}
+                  from={fromIdentity}
                   onSend={onSendReply}
                 />
               ) : null}
@@ -628,7 +629,10 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: theme.bg,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            alignItems: 'center',
+            paddingTop: 52,
+            paddingBottom: 24,
           }}
         >
           <ComposeSheet

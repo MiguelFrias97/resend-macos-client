@@ -104,6 +104,6 @@ test('the Compose button opens the compose sheet', async () => {
   await waitFor(() => expect(getByText('＋ Compose')).toBeTruthy());
   expect(queryByPlaceholderText('To')).toBeNull();
   fireEvent.press(getByText('＋ Compose'));
-  expect(getByPlaceholderText('To')).toBeTruthy();
+  expect(getByPlaceholderText('name@example.com')).toBeTruthy();
   expect(getByPlaceholderText('From').props.value).toBe('me@you.com');
 });

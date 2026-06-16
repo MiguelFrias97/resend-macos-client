@@ -17,7 +17,7 @@ test('compose: fills fields and sends an assembled payload', async () => {
   const {getByPlaceholderText, getByText, UNSAFE_getByType} = render(
     <ComposeSheet defaultFrom="me@you.com" onSend={onSend} onClose={() => {}} />,
   );
-  fireEvent.changeText(getByPlaceholderText('To'), 'a@x.com,'); // comma commits the chip
+  fireEvent.changeText(getByPlaceholderText('name@example.com'), 'a@x.com,'); // comma commits the chip
   fireEvent.changeText(getByPlaceholderText('Subject'), 'Hello');
   UNSAFE_getByType('MockComposer').props.onPressEmit();
   fireEvent.press(getByText('Send'));
@@ -41,7 +41,7 @@ test('forward: prefills Fwd subject and assembles a forward payload', async () =
     <ComposeSheet mode="forward" defaultFrom="me@you.com" forward={forward} onSend={onSend} onClose={() => {}} />,
   );
   expect(getByPlaceholderText('Subject').props.value).toBe('Fwd: Deal');
-  fireEvent.changeText(getByPlaceholderText('To'), 'c@z.com,'); // comma commits the chip
+  fireEvent.changeText(getByPlaceholderText('name@example.com'), 'c@z.com,'); // comma commits the chip
   fireEvent.press(getByText('Send'));
   await waitFor(() => expect(onSend).toHaveBeenCalled());
   const payload = onSend.mock.calls[0][0];

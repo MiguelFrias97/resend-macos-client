@@ -5,7 +5,7 @@ import {assembleReplyPayload} from '../reply/assembleReply';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE} from './designTokens';
 
-export default function ReplyComposer({original, originalHtml, onSend}) {
+export default function ReplyComposer({original, originalHtml, from, onSend}) {
   const theme = useTheme();
   const contentRef = useRef({html: '', inlineImages: []});
   const [status, setStatus] = useState('idle');
@@ -23,6 +23,7 @@ export default function ReplyComposer({original, originalHtml, onSend}) {
       original,
       replyHtml: content.html,
       originalHtml,
+      from,
       inlineImages: content.inlineImages,
     });
     try {

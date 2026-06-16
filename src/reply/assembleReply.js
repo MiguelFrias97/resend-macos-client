@@ -121,10 +121,14 @@ export function inlineAttachmentParts(inlineImages) {
   }));
 }
 
-export function assembleReplyPayload({original, replyHtml, originalHtml, inlineImages = [], attachments = []}) {
+export function assembleReplyPayload({original, replyHtml, originalHtml, from, inlineImages = [], attachments = []}) {
   const inlineParts = inlineAttachmentParts(inlineImages);
+  // From = the address the mail was received at; fall back to a configured
+  // identity if the stored message predates recipient persistence.
+  const replyFrom =
+    extractEmail((original.to && original.to[0]) || '') || extractEmail(from || '');
   return {
-    from: extractEmail((original.to && original.to[0]) || ''),
+    from: replyFrom,
     to: extractEmail(original.from),
     subject: replySubject(original.subject),
     headers: replyHeaders(original),
