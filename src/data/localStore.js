@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS messages (
   text TEXT,
   body_fetched INTEGER DEFAULT 0,
   direction TEXT DEFAULT 'received',
-  rfc_message_id TEXT
+  rfc_message_id TEXT,
+  recipient TEXT
 );
 CREATE TABLE IF NOT EXISTS attachments (
   id TEXT PRIMARY KEY, message_id TEXT, filename TEXT, content_type TEXT, size INTEGER,
@@ -25,6 +26,15 @@ async function runSchema(db) {
   for (const stmt of SCHEMA.split(';')) {
     const trimmed = stmt.trim();
     if (trimmed) await db.execute(trimmed);
+  }
+  // Migrations for databases created before a column existed. ADD COLUMN throws
+  // if it's already there, so each is best-effort.
+  for (const alter of ['ALTER TABLE messages ADD COLUMN recipient TEXT']) {
+    try {
+      await db.execute(alter);
+    } catch (e) {
+      // column already exists — fine
+    }
   }
 }
 
@@ -47,6 +57,9 @@ function mapRow(r) {
     starred: Boolean(r.starred),
     archived: Boolean(r.archived),
     direction: r.direction ?? 'received',
+    recipient: r.recipient ?? null,
+    // Surface the stored recipient as a to[] so the reply's From can be derived.
+    to: r.recipient ? [r.recipient] : [],
     html: r.html,
     text: r.text,
     bodyFetched: Boolean(r.body_fetched),
@@ -57,16 +70,20 @@ export async function createLocalStore(db) {
   await runSchema(db);
 
   async function upsertMessage(m) {
+    // recipient = the address this mail was received at; it becomes the reply's
+    // From (the user's own verified inbound address).
+    const recipient = Array.isArray(m.to) && m.to.length ? m.to[0] : m.recipient ?? null;
     await db.execute(
-      `INSERT INTO messages (id, thread_id, sender, subject, received_at, rfc_message_id)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO messages (id, thread_id, sender, subject, received_at, rfc_message_id, recipient)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          thread_id=excluded.thread_id,
          sender=excluded.sender,
          subject=excluded.subject,
          received_at=excluded.received_at,
-         rfc_message_id=excluded.rfc_message_id`,
-      [m.id, m.threadId, m.from, m.subject, m.receivedAt, m.rfcMessageId ?? null],
+         rfc_message_id=excluded.rfc_message_id,
+         recipient=COALESCE(excluded.recipient, messages.recipient)`,
+      [m.id, m.threadId, m.from, m.subject, m.receivedAt, m.rfcMessageId ?? null, recipient],
     );
   }
 
@@ -125,7 +142,7 @@ export async function createLocalStore(db) {
 
   async function listThread(threadId) {
     const res = await db.execute(
-      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction, html, text, body_fetched FROM messages WHERE thread_id=? ORDER BY received_at ASC, id ASC`,
+      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction, recipient, html, text, body_fetched FROM messages WHERE thread_id=? ORDER BY received_at ASC, id ASC`,
       [threadId],
     );
     return res.rows.map(mapRow);

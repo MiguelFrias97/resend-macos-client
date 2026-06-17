@@ -109,43 +109,50 @@ export default function ComposeSheet({
     <View
       style={{
         width: 680,
+        maxWidth: '94%',
+        height: '88%',
         borderRadius: RADIUS.lg,
         backgroundColor: theme.bg,
+        overflow: 'hidden',
         ...ELEV.sheet,
       }}>
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          height: 38,
-          paddingHorizontal: SP(2),
+          height: 44,
+          paddingHorizontal: SP(4),
           borderBottomWidth: 1,
           borderBottomColor: theme.divider,
         }}>
-        <Text style={{flex: 1, ...TYPE.sender, color: theme.text}}>
+        <Text style={{flex: 1, ...TYPE.title, fontSize: 15, color: theme.text}}>
           {mode === 'forward' ? 'Forward' : 'New message'}
         </Text>
         <Pressable onPress={onClose}>
           <Text style={{...TYPE.button, color: theme.accent}}>Close</Text>
         </Pressable>
       </View>
-      <View style={{flexDirection: 'row', alignItems: 'center'}}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingRight: SP(4),
+          borderBottomWidth: 1,
+          borderBottomColor: theme.divider,
+        }}>
         <View style={{flex: 1}}>
-          <RecipientField label="To" placeholder="To" value={to} onChange={setTo} />
+          <RecipientField label="To" placeholder="name@example.com" value={to} onChange={setTo} />
         </View>
         {mode !== 'forward' ? (
-          <Pressable
-            onPress={() => setShowCcBcc(v => !v)}
-            style={{paddingHorizontal: SP(2.5)}}
-          >
+          <Pressable onPress={() => setShowCcBcc(v => !v)}>
             <Text style={{...TYPE.button, color: theme.accent}}>Cc/Bcc</Text>
           </Pressable>
         ) : null}
       </View>
       {showCcBcc ? (
         <>
-          <RecipientField label="Cc" placeholder="Cc" value={cc} onChange={setCc} />
-          <RecipientField label="Bcc" placeholder="Bcc" value={bcc} onChange={setBcc} />
+          <RecipientField label="Cc" placeholder="" value={cc} onChange={setCc} />
+          <RecipientField label="Bcc" placeholder="" value={bcc} onChange={setBcc} />
         </>
       ) : null}
       <TextInput
@@ -164,7 +171,7 @@ export default function ComposeSheet({
         onChangeText={setSubject}
         style={subjectStyle}
       />
-      <View style={{minHeight: 80}}>
+      <View style={{flex: 1, minHeight: 160, paddingHorizontal: SP(2), paddingTop: SP(2)}}>
         <Composer onChange={handleChange} />
       </View>
       <View
@@ -174,6 +181,8 @@ export default function ComposeSheet({
           justifyContent: 'flex-end',
           gap: SP(2),
           padding: SP(3),
+          borderTopWidth: 1,
+          borderTopColor: theme.divider,
         }}>
         {status === 'sent' ? (
           <Text style={{...TYPE.meta, color: theme.success}}>Sent</Text>
