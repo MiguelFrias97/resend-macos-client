@@ -19,13 +19,21 @@ export function openDb({name = 'resendmail.sqlite', location} = {}) {
 export async function openEncryptedDb({name = 'resendmail.sqlite', location} = {}) {
   const op = require('@op-engineering/op-sqlite');
   const {getOrCreateDbKey} = require('../native/Keychain');
-  const encryptionKey = await getOrCreateDbKey();
   if (op.isSQLCipher && !op.isSQLCipher()) {
     // The native build didn't link SQLCipher — fail loud rather than silently
     // writing plaintext while claiming encryption.
     throw new Error('SQLCipher not enabled in the native build; refusing to open an unencrypted cache');
   }
-  let db = op.open({name, location, encryptionKey});
+  const encryptionKey = await getOrCreateDbKey();
+  if (typeof encryptionKey !== 'string' || !encryptionKey) {
+    throw new Error(`DB encryption key unavailable (got ${typeof encryptionKey})`);
+  }
+  // Build params WITHOUT an explicit undefined `location`: op-sqlite's native
+  // bridge throws "Value is undefined, expected a String" when a present key
+  // holds undefined, so only include location when we actually have one.
+  const params = {name, encryptionKey};
+  if (typeof location === 'string' && location) params.location = location;
+  let db = op.open(params);
   try {
     await db.execute('SELECT count(*) FROM sqlite_master');
   } catch (e) {
@@ -34,7 +42,7 @@ export async function openEncryptedDb({name = 'resendmail.sqlite', location} = {
     } catch (e2) {
       // best-effort; recreate below regardless
     }
-    db = op.open({name, location, encryptionKey});
+    db = op.open(params);
   }
   return db;
 }
