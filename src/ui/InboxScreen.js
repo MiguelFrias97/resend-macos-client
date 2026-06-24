@@ -35,6 +35,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const [selected, setSelected] = useState(null);
   const [thread, setThread] = useState([]);
   const [filter, setFilter] = useState('inbox');
+  const [counts, setCounts] = useState({});
   const [query, setQuery] = useState('');
   const [error, setError] = useState(null);
   const [allowRemote, setAllowRemote] = useState(false);
@@ -70,6 +71,15 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       ? await services.store.searchMessages(q)
       : await services.store.listMessages(filterRef.current);
     if (seq === listSeqRef.current) setMessages(list);
+    // Refresh sidebar counts alongside the list (best-effort).
+    if (services.store.counts) {
+      try {
+        const c = await services.store.counts();
+        if (seq === listSeqRef.current) setCounts(c);
+      } catch (e) {
+        // counts are decorative; ignore failures
+      }
+    }
   };
 
   useEffect(() => {
@@ -476,7 +486,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   return (
     <View style={{flex: 1, backgroundColor: theme.bg}}>
       <View style={{flex: 1, flexDirection: 'row'}}>
-        <Sidebar selected={filter} onSelect={onFilter} />
+        <Sidebar selected={filter} onSelect={onFilter} counts={counts} />
         <View
           style={{
             width: 340,
@@ -561,14 +571,15 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
+                  gap: SP(2),
+                  paddingHorizontal: SP(7),
+                  paddingVertical: SP(2.5),
                   borderBottomWidth: 1,
                   borderBottomColor: theme.divider,
                 }}
               >
                 <Text
-                  style={{fontSize: 16, fontWeight: '600', flex: 1, color: theme.text}}
+                  style={{...TYPE.title, flex: 1, color: theme.text}}
                   numberOfLines={1}
                 >
                   {selected.subject}
@@ -576,23 +587,47 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
                 {!allowRemote ? (
                   <Pressable
                     onPress={() => setAllowRemote(true)}
-                    style={{marginLeft: 12}}
+                    style={{
+                      height: 28,
+                      paddingHorizontal: SP(2.5),
+                      borderRadius: RADIUS.sm,
+                      justifyContent: 'center',
+                    }}
                   >
-                    <Text style={{color: theme.accent}}>Load remote images</Text>
+                    <Text style={{...TYPE.button, color: theme.textMuted}}>
+                      Load images
+                    </Text>
                   </Pressable>
                 ) : null}
+                <Pressable
+                  onPress={startForward}
+                  style={{
+                    height: 28,
+                    paddingHorizontal: SP(3),
+                    borderRadius: RADIUS.sm,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{...TYPE.button, color: theme.text}}>Forward</Text>
+                </Pressable>
                 {!replying ? (
-                  <Pressable onPress={startReply} style={{marginLeft: 12}}>
-                    <Text style={{color: theme.accent, fontWeight: '600'}}>
+                  <Pressable
+                    onPress={startReply}
+                    style={{
+                      height: 28,
+                      paddingHorizontal: SP(4),
+                      borderRadius: RADIUS.sm,
+                      backgroundColor: theme.accent,
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{...TYPE.button, color: theme.onAccent}}>
                       Reply
                     </Text>
                   </Pressable>
                 ) : null}
-                <Pressable onPress={startForward} style={{marginLeft: 12}}>
-                  <Text style={{color: theme.accent, fontWeight: '600'}}>
-                    Forward
-                  </Text>
-                </Pressable>
               </View>
               <ThreadView
                 messages={thread}
@@ -614,9 +649,26 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
             </View>
           ) : (
             <View
-              style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}
+              style={{flex: 1, alignItems: 'center', justifyContent: 'center', gap: SP(2)}}
             >
-              <Text style={{color: theme.textMuted}}>Select a message</Text>
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: theme.surface2,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{fontSize: 24, color: theme.textFaint}}>✉</Text>
+              </View>
+              <Text style={{...TYPE.title, fontSize: 15, color: theme.text}}>
+                No message selected
+              </Text>
+              <Text style={{...TYPE.preview, color: theme.textMuted}}>
+                Select a conversation to read it here.
+              </Text>
             </View>
           )}
         </View>

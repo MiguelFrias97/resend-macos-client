@@ -41,7 +41,7 @@ function contentSecurityPolicy(allowRemote) {
   );
 }
 
-export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
+export function sanitizeEmailHtml(html, {allowRemote = false, accentColor} = {}) {
   if (!html) return '';
   const body = sanitizeHtml(html, {
     // Note: <style> is intentionally NOT allowed — embedded stylesheets can load
@@ -81,20 +81,20 @@ export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
     },
   });
   const csp = contentSecurityPolicy(allowRemote);
-  // Presentational base CSS for the rendered mail body, from the Claude Design
-  // spec. Static light-mode-safe values are used because this function has no
-  // theme access today; a theme object can be threaded through later to make
-  // these dynamic.
+  // Presentational base CSS for the rendered mail body. The body is rendered on a
+  // LIGHT "sheet of paper" surface on purpose: most HTML mail hardcodes dark text
+  // with no background, so forcing a dark body would make that text invisible
+  // (this is why Apple Mail keeps message bodies light unless the sender opts into
+  // dark via color-scheme). The seam that read as "a bug" is fixed by framing this
+  // as an intentional document surface in the RN container, not by inverting it.
   //
-  // NOTE: this stylesheet is injected as an inline `style` attribute on a
-  // wrapper element rather than as a <style> element on purpose — embedded
-  // <style> blocks are stripped from untrusted mail (and the test suite asserts
-  // no <style> tag appears in the output), so the only safe place for our own
-  // presentational rules is an inline attribute on the trusted wrapper. The
-  // selector-based niceties (p/a/blockquote/pre spacing, link color, etc.) are
-  // therefore expressed as a class hook plus the body-level rules we can set
-  // inline; richer rules can move to a CSP-nonce'd <style> if/when the test
-  // contract is relaxed.
+  // Only the link color is themed (to the system accent). `color-scheme: light
+  // dark` lets well-behaved senders adapt themselves.
+  //
+  // NOTE: rules are inline on the trusted wrapper, not a <style> element —
+  // embedded <style> is stripped from untrusted mail (and a test asserts no
+  // <style> appears in the output).
+  const link = accentColor || '#007aff';
   const bodyStyle = [
     'margin:0',
     "font:15px/1.55 -apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif",
@@ -103,9 +103,10 @@ export function sanitizeEmailHtml(html, {allowRemote = false} = {}) {
     'word-wrap:break-word',
     '-webkit-text-size-adjust:100%',
   ].join(';');
-  const contentStyle = 'max-width:600px;padding:0';
+  const contentStyle = `max-width:600px;padding:0;accent-color:${link}`;
   return (
     '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+    '<meta name="color-scheme" content="light dark">' +
     `<meta http-equiv="Content-Security-Policy" content="${csp}">` +
     `</head><body style="${bodyStyle}">` +
     `<div class="mail-content" style="${contentStyle}">${body}</div>` +

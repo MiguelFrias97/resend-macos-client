@@ -50,9 +50,13 @@ export default function Onboarding({onComplete, deps = {}}) {
     if (!ok) {
       const status = (result && result.status) || 0;
       const reason = (result && result.reason) || '';
-      // Append what the field actually captured — if this length doesn't match
-      // the real key, the masked field mangled the paste (the likely culprit).
-      setError(`${verifyErrorMessage(status, reason)} (captured ${cleanKey.length} chars)`);
+      // If the field captured nothing (the masked-paste failure mode), say so
+      // plainly; otherwise show the real reason without leaking diagnostics.
+      setError(
+        cleanKey.length === 0
+          ? 'Paste your API key into the field above first.'
+          : verifyErrorMessage(status, reason),
+      );
       setBusy(false);
       return;
     }
