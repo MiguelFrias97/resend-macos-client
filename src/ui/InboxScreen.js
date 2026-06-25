@@ -10,7 +10,7 @@ import ComposeSheet from './ComposeSheet';
 import SettingsScreen from './SettingsScreen';
 import EmptyState from './EmptyState';
 import {useTheme} from './useTheme';
-import {SP, RADIUS, TYPE} from './designTokens';
+import {SP, RADIUS, TYPE, ELEV} from './designTokens';
 import {setOverride} from './themeOverride';
 import {notify} from '../native/Notifications';
 import {createLocalStore} from '../data/localStore';
@@ -49,6 +49,16 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const [forwardData, setForwardData] = useState(null);
   const [fromIdentity, setFromIdentity] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sentToast, setSentToast] = useState('');
+  const sentToastTimer = useRef(null);
+
+  // Shell-level confirmation that a message left — the composer often unmounts
+  // before its own "Sent" can be seen.
+  const flashSent = (msg = 'Message sent') => {
+    setSentToast(msg);
+    if (sentToastTimer.current) clearTimeout(sentToastTimer.current);
+    sentToastTimer.current = setTimeout(() => setSentToast(''), 2500);
+  };
   const [themeChoice, setThemeChoice] = useState('auto');
   const servicesRef = useRef(null);
   const outboxBusyRef = useRef(false);
@@ -338,7 +348,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       receivedAt: new Date().toISOString(),
       html: payload.html,
     };
-    return sendReply({
+    const res = await sendReply({
       store,
       sender,
       id,
@@ -346,6 +356,12 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       payload,
       sentMessage,
     });
+    if (res && res.ok) {
+      flashSent();
+      setComposeMode(null);
+      setForwardData(null);
+    }
+    return res;
   };
 
   const startForward = async () => {
@@ -409,6 +425,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     });
     if (res && res.ok) {
       setReplying(false);
+      flashSent();
       // Reflect the new sent reply in the conversation.
       setThread(await store.listThread(selected.threadId));
     }
@@ -477,14 +494,81 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
             backgroundColor: theme.accent,
           }}
         >
-          <Text style={{...TYPE.button, color: '#fff'}}>Retry</Text>
+          <Text style={{...TYPE.button, color: theme.onAccent}}>Retry</Text>
         </Pressable>
       </View>
     );
   }
 
+  // Move list selection by delta (keyboard ↑/↓).
+  const moveSelection = delta => {
+    if (!messages.length) return;
+    const idx = messages.findIndex(m => m.id === selected?.id);
+    const next = idx === -1 ? 0 : Math.max(0, Math.min(messages.length - 1, idx + delta));
+    onSelect(messages[next]);
+  };
+
+  // Keyboard shortcuts, handled at the shell. keyDownEvents tells AppKit which
+  // combos this view consumes (so they don't beep / fall through).
+  const SHELL_KEYS = [
+    {key: 'n', metaKey: true},
+    {key: 'r', metaKey: true},
+    {key: 'f', metaKey: true, shiftKey: true},
+    {key: 'Escape'},
+    {key: 'ArrowDown'},
+    {key: 'ArrowUp'},
+  ];
+  const onShellKey = e => {
+    const {key, metaKey, shiftKey} = e.nativeEvent || {};
+    if (metaKey && shiftKey && (key === 'f' || key === 'F')) {
+      if (selected) startForward();
+    } else if (metaKey && key === 'n') {
+      setForwardData(null);
+      setComposeMode('compose');
+    } else if (metaKey && key === 'r') {
+      if (selected && !replying) startReply();
+    } else if (key === 'Escape') {
+      if (composeMode) {
+        setComposeMode(null);
+        setForwardData(null);
+      } else if (settingsOpen) {
+        setSettingsOpen(false);
+      } else if (replying) {
+        setReplying(false);
+      }
+    } else if (key === 'ArrowDown') {
+      moveSelection(1);
+    } else if (key === 'ArrowUp') {
+      moveSelection(-1);
+    }
+  };
+
   return (
-    <View style={{flex: 1, backgroundColor: theme.bg}}>
+    <View
+      style={{flex: 1, backgroundColor: theme.bg}}
+      focusable={true}
+      keyDownEvents={SHELL_KEYS}
+      onKeyDown={onShellKey}>
+      {sentToast ? (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: SP(5),
+            alignSelf: 'center',
+            zIndex: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: SP(2),
+            paddingVertical: SP(2),
+            paddingHorizontal: SP(4),
+            borderRadius: RADIUS.pill,
+            backgroundColor: theme.text,
+            ...ELEV.popover,
+          }}
+        >
+          <Text style={{...TYPE.button, color: theme.bg}}>✓ {sentToast}</Text>
+        </View>
+      ) : null}
       <View style={{flex: 1, flexDirection: 'row'}}>
         <Sidebar selected={filter} onSelect={onFilter} counts={counts} />
         <View
@@ -516,7 +600,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
               }}
             >
               <Text style={{...TYPE.button, color: theme.textMuted}}>
-                ＋ Compose
+                + Compose
               </Text>
             </Pressable>
             <Pressable
@@ -589,12 +673,14 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
                     onPress={() => setAllowRemote(true)}
                     style={{
                       height: 28,
-                      paddingHorizontal: SP(2.5),
+                      paddingHorizontal: SP(3),
                       borderRadius: RADIUS.sm,
+                      borderWidth: 1,
+                      borderColor: theme.border,
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{...TYPE.button, color: theme.textMuted}}>
+                    <Text style={{...TYPE.button, color: theme.text}}>
                       Load images
                     </Text>
                   </Pressable>

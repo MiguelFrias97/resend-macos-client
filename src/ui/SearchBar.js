@@ -1,25 +1,34 @@
 import React from 'react';
-import {TextInput} from 'react-native';
+import {View, Text, TextInput} from 'react-native';
 import {useTheme} from './useTheme';
 import {SP, RADIUS} from './designTokens';
 
 export default function SearchBar({value, onChange}) {
   const theme = useTheme();
   return (
-    <TextInput
-      placeholder="Search"
-      placeholderTextColor={theme.textFaint}
-      value={value}
-      onChangeText={onChange}
+    <View
       style={{
+        flexDirection: 'row',
+        alignItems: 'center',
         margin: SP(2),
         height: 28,
         paddingHorizontal: SP(2),
         borderRadius: RADIUS.sm,
-        backgroundColor: theme.text + '0E',
-        fontSize: 13,
-        color: theme.text,
-      }}
-    />
+        backgroundColor: theme.fieldFill,
+      }}>
+      <Text style={{color: theme.textFaint, fontSize: 13, marginRight: SP(1)}}>⌕</Text>
+      <TextInput
+        placeholder="Search"
+        placeholderTextColor={theme.textFaint}
+        value={value}
+        onChangeText={onChange}
+        style={{
+          flex: 1,
+          padding: 0,
+          fontSize: 13,
+          color: theme.text,
+        }}
+      />
+    </View>
   );
 }

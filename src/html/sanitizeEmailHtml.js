@@ -103,7 +103,7 @@ export function sanitizeEmailHtml(html, {allowRemote = false, accentColor} = {})
     'word-wrap:break-word',
     '-webkit-text-size-adjust:100%',
   ].join(';');
-  const contentStyle = `max-width:600px;padding:0;accent-color:${link}`;
+  const contentStyle = `max-width:600px;padding:16px 20px;accent-color:${link}`;
   return (
     '<!DOCTYPE html><html><head><meta charset="utf-8">' +
     '<meta name="color-scheme" content="light dark">' +

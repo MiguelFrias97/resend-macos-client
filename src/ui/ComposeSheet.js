@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {View, Text, TextInput, Pressable} from 'react-native';
 import Composer from './Composer';
+import ComposerFooter from './ComposerFooter';
 import RecipientField from './RecipientField';
 import {useTheme} from './useTheme';
 import {
@@ -155,15 +156,25 @@ export default function ComposeSheet({
           <RecipientField label="Bcc" placeholder="" value={bcc} onChange={setBcc} />
         </>
       ) : null}
-      <TextInput
-        placeholder="From"
-        placeholderTextColor={theme.textMuted}
-        value={from}
-        onChangeText={setFrom}
-        onBlur={persistFrom}
-        autoCapitalize="none"
-        style={fieldStyle}
-      />
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingLeft: SP(2),
+          borderBottomWidth: 1,
+          borderBottomColor: theme.divider,
+        }}>
+        <Text style={{...TYPE.meta, width: 56, color: theme.textMuted}}>From</Text>
+        <TextInput
+          placeholder="From"
+          placeholderTextColor={theme.textMuted}
+          value={from}
+          onChangeText={setFrom}
+          onBlur={persistFrom}
+          autoCapitalize="none"
+          style={{...fieldStyle, flex: 1, borderBottomWidth: 0, paddingLeft: 0}}
+        />
+      </View>
       <TextInput
         placeholder="Subject"
         placeholderTextColor={theme.textMuted}
@@ -176,39 +187,11 @@ export default function ComposeSheet({
       </View>
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: SP(2),
           padding: SP(3),
           borderTopWidth: 1,
           borderTopColor: theme.divider,
         }}>
-        {status === 'sent' ? (
-          <Text style={{...TYPE.meta, color: theme.success}}>Sent</Text>
-        ) : null}
-        {status === 'failed' ? (
-          <Pressable onPress={send}>
-            <Text style={{...TYPE.meta, color: theme.danger}}>
-              {errorText ? `${errorText} — Retry` : 'Failed — Retry'}
-            </Text>
-          </Pressable>
-        ) : null}
-        <Pressable
-          onPress={send}
-          disabled={status === 'sending'}
-          style={{
-            height: 28,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: SP(4),
-            borderRadius: RADIUS.sm,
-            backgroundColor: theme.accent,
-          }}>
-          <Text style={{...TYPE.button, color: '#fff'}}>
-            {status === 'sending' ? 'Sending…' : 'Send'}
-          </Text>
-        </Pressable>
+        <ComposerFooter status={status} errorText={errorText} onSend={send} theme={theme} />
       </View>
     </View>
   );

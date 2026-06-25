@@ -102,7 +102,7 @@ export default function SettingsScreen({
                 <Text
                   style={{
                     ...TYPE.button,
-                    color: themeOverride === opt.key ? theme.accent : theme.text,
+                    color: themeOverride === opt.key ? theme.onAccent : theme.text,
                   }}>
                   {opt.label}
                 </Text>
@@ -112,7 +112,17 @@ export default function SettingsScreen({
         </View>
       </View>
 
-      <Pressable onPress={onSignOut} style={{alignSelf: 'flex-start'}}>
+      <Pressable
+        onPress={onSignOut}
+        style={{
+          alignSelf: 'flex-start',
+          justifyContent: 'center',
+          height: 30,
+          paddingHorizontal: SP(3),
+          borderWidth: 1,
+          borderColor: theme.danger,
+          borderRadius: RADIUS.sm,
+        }}>
         <Text style={{...TYPE.button, color: theme.danger}}>Sign out</Text>
       </Pressable>
     </View>

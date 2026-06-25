@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {ScrollView, View, Text, Pressable} from 'react-native';
 import MessageBody from './MessageBody';
 import {useTheme} from './useTheme';
+import {avatarColor} from './theme';
 import {SP, TYPE} from './designTokens';
 import {formatDateTime} from './formatDate';
 
@@ -41,6 +42,9 @@ export default function ThreadView({messages, bodyDeps, allowRemote}) {
       {messages.map(m => {
         const isOpen = Boolean(expanded[m.id]);
         const senderName = m.direction === 'sent' ? 'You' : m.from;
+        // Stable per-sender avatar hue: 'you' for sent, else the address/name.
+        const avatarBg =
+          m.direction === 'sent' ? avatarColor('you') : avatarColor(m.from || senderName);
         return (
           <View key={m.id} style={{borderBottomWidth: 1, borderBottomColor: theme.divider}}>
             <Pressable
@@ -57,12 +61,12 @@ export default function ThreadView({messages, bodyDeps, allowRemote}) {
                   width: 34,
                   height: 34,
                   borderRadius: 17,
-                  backgroundColor: theme.accent,
+                  backgroundColor: avatarBg,
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: SP(3),
                 }}>
-                <Text style={{fontSize: 13, fontWeight: '600', color: theme.onAccent}}>
+                <Text style={{fontSize: 13, fontWeight: '600', color: '#fff'}}>
                   {initialFor(senderName)}
                 </Text>
               </View>

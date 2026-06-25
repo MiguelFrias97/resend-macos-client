@@ -80,7 +80,7 @@ export default function MessageList({messages, onSelect, selectedId, onToggleSta
                 accessibilityLabel={`Star ${item.subject}`}
                 onPress={() => onToggleStar && onToggleStar(item)}
                 style={{paddingHorizontal: SP(2), paddingVertical: SP(2)}}>
-                <Text style={{color: item.starred ? '#E0A33A' : theme.textMuted, fontSize: 16}}>
+                <Text style={{color: item.starred ? theme.star : theme.textMuted, fontSize: 16}}>
                   {item.starred ? '★' : '☆'}
                 </Text>
               </Pressable>
@@ -88,7 +88,7 @@ export default function MessageList({messages, onSelect, selectedId, onToggleSta
                 accessibilityLabel={`Archive ${item.subject}`}
                 onPress={() => onArchive && onArchive(item)}
                 style={{paddingHorizontal: SP(2), paddingVertical: SP(2)}}>
-                <Text style={{color: theme.textMuted, fontSize: 16}}>🗀</Text>
+                <Text style={{color: theme.textMuted, fontSize: 16}}>▾</Text>
               </Pressable>
             </>
           ) : null}

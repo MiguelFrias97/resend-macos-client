@@ -21,7 +21,8 @@ export default function AttachmentTray({attachments, onSave}) {
         flexWrap: 'wrap',
         gap: SP(2),
         marginTop: SP(3),
-        marginLeft: 45,
+        marginLeft: SP(7),
+        marginRight: SP(4),
       }}>
       {attachments.map(a => {
         const risky =

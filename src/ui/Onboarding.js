@@ -134,7 +134,7 @@ export default function Onboarding({onComplete, deps = {}}) {
             justifyContent: 'center',
             marginTop: SP(4),
           }}>
-          <Text style={{...TYPE.button, color: '#fff'}}>
+          <Text style={{...TYPE.button, color: theme.onAccent}}>
             {busy ? 'Connecting…' : 'Connect'}
           </Text>
         </Pressable>

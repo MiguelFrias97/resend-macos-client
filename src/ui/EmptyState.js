@@ -15,6 +15,17 @@ export default function EmptyState({message}) {
         paddingVertical: SP(16),
         paddingHorizontal: SP(7),
       }}>
+      <View
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          backgroundColor: theme.surface2,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <Text style={{fontSize: 20, color: theme.textFaint}}>✉</Text>
+      </View>
       <Text
         style={{
           ...TYPE.preview,

@@ -4,11 +4,11 @@ import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE} from './designTokens';
 
 const FILTERS = [
-  {key: 'inbox', label: 'Inbox', glyph: '📥'},
+  {key: 'inbox', label: 'Inbox', glyph: '▤'},
   {key: 'unread', label: 'Unread', glyph: '●'},
   {key: 'starred', label: 'Starred', glyph: '★'},
-  {key: 'sent', label: 'Sent', glyph: '➤'},
-  {key: 'archive', label: 'Archive', glyph: '🗄'},
+  {key: 'sent', label: 'Sent', glyph: '↗'},
+  {key: 'archive', label: 'Archive', glyph: '▾'},
 ];
 
 export default function Sidebar({selected, onSelect, counts = {}}) {
