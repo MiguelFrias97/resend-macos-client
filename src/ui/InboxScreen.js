@@ -501,58 +501,14 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     );
   }
 
-  // Move list selection by delta (keyboard ↑/↓).
-  const moveSelection = delta => {
-    if (!messages.length) return;
-    const idx = messages.findIndex(m => m.id === selected?.id);
-    const next = idx === -1 ? 0 : Math.max(0, Math.min(messages.length - 1, idx + delta));
-    onSelect(messages[next]);
-  };
-
-  // Keyboard shortcuts, handled at the shell. keyDownEvents tells AppKit which
-  // combos this view consumes (so they don't beep / fall through).
-  const SHELL_KEYS = [
-    {key: 'n', metaKey: true},
-    {key: 'r', metaKey: true},
-    {key: 'f', metaKey: true},
-    {key: 'f', metaKey: true, shiftKey: true},
-    {key: 'Escape'},
-    {key: 'ArrowDown'},
-    {key: 'ArrowUp'},
-  ];
-  const onShellKey = e => {
-    const {key, metaKey, shiftKey} = e.nativeEvent || {};
-    if (metaKey && shiftKey && (key === 'f' || key === 'F')) {
-      if (selected) startForward();
-    } else if (metaKey && (key === 'f' || key === 'F')) {
-      if (searchInputRef.current) searchInputRef.current.focus();
-    } else if (metaKey && key === 'n') {
-      setForwardData(null);
-      setComposeMode('compose');
-    } else if (metaKey && key === 'r') {
-      if (selected && !replying) startReply();
-    } else if (key === 'Escape') {
-      if (composeMode) {
-        setComposeMode(null);
-        setForwardData(null);
-      } else if (settingsOpen) {
-        setSettingsOpen(false);
-      } else if (replying) {
-        setReplying(false);
-      }
-    } else if (key === 'ArrowDown') {
-      moveSelection(1);
-    } else if (key === 'ArrowUp') {
-      moveSelection(-1);
-    }
-  };
+  // NOTE: shell-level keyboard shortcuts (⌘N/⌘R/⌘F/Esc/arrows) were removed —
+  // making the root View `focusable` to receive onKeyDown caused it to swallow
+  // the first mouse click (AppKit first-responder behavior), which broke the
+  // Send/Reply buttons. ⌘↵-to-send still works (handled natively inside the
+  // editor). A proper re-do routes these through the native app menu instead.
 
   return (
-    <View
-      style={{flex: 1, backgroundColor: theme.bg}}
-      focusable={true}
-      keyDownEvents={SHELL_KEYS}
-      onKeyDown={onShellKey}>
+    <View style={{flex: 1, backgroundColor: theme.bg}}>
       {sentToast ? (
         <View
           style={{
