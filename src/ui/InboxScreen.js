@@ -67,6 +67,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const selectedRef = useRef(null);
   const listSeqRef = useRef(0);
   const searchTimerRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // Load the message list for the current filter/search, reading from refs so
   // the sync tick and effects all use the latest values. A sequence guard drops
@@ -513,6 +514,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const SHELL_KEYS = [
     {key: 'n', metaKey: true},
     {key: 'r', metaKey: true},
+    {key: 'f', metaKey: true},
     {key: 'f', metaKey: true, shiftKey: true},
     {key: 'Escape'},
     {key: 'ArrowDown'},
@@ -522,6 +524,8 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     const {key, metaKey, shiftKey} = e.nativeEvent || {};
     if (metaKey && shiftKey && (key === 'f' || key === 'F')) {
       if (selected) startForward();
+    } else if (metaKey && (key === 'f' || key === 'F')) {
+      if (searchInputRef.current) searchInputRef.current.focus();
     } else if (metaKey && key === 'n') {
       setForwardData(null);
       setComposeMode('compose');
@@ -617,7 +621,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
               <Text style={{...TYPE.button, color: theme.textMuted}}>⚙</Text>
             </Pressable>
           </View>
-          <SearchBar value={query} onChange={onQuery} />
+          <SearchBar value={query} onChange={onQuery} inputRef={searchInputRef} />
           {error ? (
             <View
               style={{

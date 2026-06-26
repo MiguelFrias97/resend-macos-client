@@ -65,3 +65,14 @@ test('native onChange surfaces email html + inline images', () => {
     ],
   });
 });
+
+test('forwards the native editor submit (Cmd+Return) to onSubmit', () => {
+  const onSubmit = jest.fn();
+  const {UNSAFE_getByType} = render(
+    <Composer onChange={() => {}} onSubmit={onSubmit} />,
+  );
+  // The mocked RichEditorView renders as a host element named 'RichEditorView';
+  // fire its onSubmit prop to simulate the native ⌘↵ event.
+  UNSAFE_getByType('RichEditorView').props.onSubmit();
+  expect(onSubmit).toHaveBeenCalled();
+});

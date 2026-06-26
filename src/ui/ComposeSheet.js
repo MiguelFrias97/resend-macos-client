@@ -183,7 +183,7 @@ export default function ComposeSheet({
         style={subjectStyle}
       />
       <View style={{flex: 1, minHeight: 160, paddingHorizontal: SP(2), paddingTop: SP(2)}}>
-        <Composer onChange={handleChange} />
+        <Composer onChange={handleChange} onSubmit={send} />
       </View>
       <View
         style={{

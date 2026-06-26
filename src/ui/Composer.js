@@ -30,7 +30,7 @@ function ToolbarButton({label, onPress, children, color}) {
 // A rich-text composer: a native NSTextView editor with a formatting toolbar.
 // onChange reports the email HTML and the inline images extracted from the
 // editor's document model (consumed by the reply/send pipeline in M6).
-export default function Composer({onChange}) {
+export default function Composer({onChange, onSubmit}) {
   const theme = useTheme();
   const handleNativeChange = e => {
     const model = e && e.nativeEvent ? e.nativeEvent.model : null;
@@ -40,6 +40,10 @@ export default function Composer({onChange}) {
         inlineImages: collectInlineImages(model),
       });
     }
+  };
+  // ⌘↵ inside the native editor → send.
+  const handleNativeSubmit = () => {
+    if (onSubmit) onSubmit();
   };
 
   const btnColor = {text: theme.text, hover: theme.hover};
@@ -75,6 +79,7 @@ export default function Composer({onChange}) {
       <RichEditorView
         style={{flex: 1, minHeight: 80, ...TYPE.body, color: theme.text}}
         onChange={handleNativeChange}
+        onSubmit={handleNativeSubmit}
       />
     </View>
   );

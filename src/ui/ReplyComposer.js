@@ -50,7 +50,7 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
         padding: SP(3),
       }}>
       <View style={{minHeight: 80}}>
-        <Composer onChange={handleChange} />
+        <Composer onChange={handleChange} onSubmit={send} />
       </View>
       <View style={{marginTop: SP(2.5)}}>
         <ComposerFooter status={status} errorText={errorText} onSend={send} theme={theme} />

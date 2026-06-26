@@ -3,7 +3,7 @@ import {View, Text, TextInput} from 'react-native';
 import {useTheme} from './useTheme';
 import {SP, RADIUS} from './designTokens';
 
-export default function SearchBar({value, onChange}) {
+export default function SearchBar({value, onChange, inputRef}) {
   const theme = useTheme();
   return (
     <View
@@ -18,6 +18,7 @@ export default function SearchBar({value, onChange}) {
       }}>
       <Text style={{color: theme.textFaint, fontSize: 13, marginRight: SP(1)}}>⌕</Text>
       <TextInput
+        ref={inputRef}
         placeholder="Search"
         placeholderTextColor={theme.textFaint}
         value={value}

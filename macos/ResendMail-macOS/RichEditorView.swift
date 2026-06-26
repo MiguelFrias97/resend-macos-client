@@ -15,6 +15,21 @@ class RichEditorViewManager: RCTViewManager {
   }
 }
 
+// NSTextView that reports ⌘↵ (Cmd+Return/Enter) so the composer can send. A
+// plain Return still inserts a newline as usual.
+class SubmitTextView: NSTextView {
+  var onCmdReturn: (() -> Void)?
+  override func keyDown(with event: NSEvent) {
+    // keyCode 36 = Return, 76 = numeric-keypad Enter.
+    if event.modifierFlags.contains(.command),
+       event.keyCode == 36 || event.keyCode == 76 {
+      onCmdReturn?()
+      return
+    }
+    super.keyDown(with: event)
+  }
+}
+
 // An editable NSTextView (inside a scroll view) that accepts rich text and
 // dropped images, and serializes its content to the JSON document model the
 // JS layer turns into email HTML.
@@ -23,7 +38,7 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
   // on this. Weak so it doesn't outlive the view.
   static weak var active: RichEditorNSView?
 
-  let textView: NSTextView
+  let textView: SubmitTextView
   private let scrollView: NSScrollView
 
   // Caches each inline image's base64 so we don't re-encode the full image on
@@ -31,17 +46,18 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
   private var imageCache: [ObjectIdentifier: String] = [:]
 
   @objc var onChange: RCTBubblingEventBlock?
+  @objc var onSubmit: RCTBubblingEventBlock?
 
   override init(frame frameRect: NSRect) {
     scrollView = NSScrollView(frame: frameRect)
-    textView = NSTextView(frame: scrollView.bounds)
+    textView = SubmitTextView(frame: scrollView.bounds)
     super.init(frame: frameRect)
     configure()
   }
 
   required init?(coder: NSCoder) {
     scrollView = NSScrollView()
-    textView = NSTextView()
+    textView = SubmitTextView()
     super.init(coder: coder)
     configure()
   }
@@ -58,6 +74,10 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
     textView.isVerticallyResizable = true
     textView.isHorizontallyResizable = false
     textView.textContainer?.widthTracksTextView = true
+
+    textView.onCmdReturn = { [weak self] in
+      self?.onSubmit?([:])
+    }
 
     scrollView.documentView = textView
     scrollView.hasVerticalScroller = true
