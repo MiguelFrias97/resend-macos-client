@@ -49,7 +49,10 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
         backgroundColor: theme.bg,
         padding: SP(3),
       }}>
-      <View style={{minHeight: 80}}>
+      {/* Fixed height (not minHeight): the native NSView editor must not overflow
+          its box and cover the footer below it, or the Send button becomes
+          unclickable (native views capture mouse events over their frame). */}
+      <View style={{height: 180}}>
         <Composer onChange={handleChange} onSubmit={send} />
       </View>
       <View style={{marginTop: SP(2.5)}}>
