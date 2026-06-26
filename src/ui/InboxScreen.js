@@ -39,6 +39,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const [query, setQuery] = useState('');
   const [error, setError] = useState(null);
   const [allowRemote, setAllowRemote] = useState(false);
+  const [hasRemoteImages, setHasRemoteImages] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [ready, setReady] = useState(false);
   const [initError, setInitError] = useState(null);
@@ -241,6 +242,12 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
           return '';
         }
       },
+      onRemoteContent: (id, has) => {
+        // Only the selected message drives the header's "Load images" affordance.
+        if (selectedRef.current && selectedRef.current.id === id) {
+          setHasRemoteImages(has);
+        }
+      },
       onLoaded: async id => {
         // The thread renders several bodies; only the clicked message drives
         // the attachment tray.
@@ -255,6 +262,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
 
   const onSelect = async msg => {
     setAllowRemote(false);
+    setHasRemoteImages(false);
     setAttachments([]);
     setReplying(false);
     setOriginalHtml('');
@@ -628,7 +636,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
                 >
                   {selected.subject}
                 </Text>
-                {!allowRemote ? (
+                {hasRemoteImages && !allowRemote ? (
                   <Pressable
                     onPress={() => setAllowRemote(true)}
                     style={{

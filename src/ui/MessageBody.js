@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, ActivityIndicator} from 'react-native';
 import MessageBodyView from '../native/MessageBodyView';
-import {sanitizeEmailHtml} from '../html/sanitizeEmailHtml';
+import {sanitizeEmailHtml, hasRemoteContent} from '../html/sanitizeEmailHtml';
 import {useTheme} from './useTheme';
 import {SP} from './designTokens';
 
@@ -34,6 +34,9 @@ export default function MessageBody({messageId, allowRemote = false, deps}) {
           if (!cancelled) setCacheDir(dir || '');
         }
         if (!cancelled) setHtml(bodyHtml || '');
+        if (!cancelled && deps.onRemoteContent) {
+          deps.onRemoteContent(messageId, hasRemoteContent(bodyHtml || ''));
+        }
         if (!cancelled && deps.onLoaded) deps.onLoaded(messageId);
       } catch (e) {
         if (!cancelled) setError(e.message || 'Failed to load message');

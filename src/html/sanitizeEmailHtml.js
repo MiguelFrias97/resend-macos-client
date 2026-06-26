@@ -41,6 +41,16 @@ function contentSecurityPolicy(allowRemote) {
   );
 }
 
+// Whether a message body references remote content that we block by default —
+// used to show the "Load images" affordance ONLY when there's something to load.
+export function hasRemoteContent(html) {
+  if (!html) return false;
+  return (
+    /<img[^>]+src\s*=\s*["']?\s*https?:/i.test(html) ||
+    /url\(\s*["']?\s*https?:/i.test(html)
+  );
+}
+
 export function sanitizeEmailHtml(html, {allowRemote = false, accentColor} = {}) {
   if (!html) return '';
   const body = sanitizeHtml(html, {
