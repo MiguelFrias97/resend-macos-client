@@ -46,6 +46,12 @@ const FILTERS = {
   sent: `direction='sent'`,
 };
 
+// Collapse a plaintext body into a short, single-line list preview.
+function previewFromText(text) {
+  if (!text) return '';
+  return String(text).replace(/\s+/g, ' ').trim().slice(0, 140);
+}
+
 function mapRow(r) {
   return {
     id: r.id,
@@ -62,6 +68,8 @@ function mapRow(r) {
     to: r.recipient ? [r.recipient] : [],
     html: r.html,
     text: r.text,
+    // One-line preview for the list (only present once a body has been fetched).
+    snippet: previewFromText(r.text),
     bodyFetched: Boolean(r.body_fetched),
   };
 }
@@ -119,9 +127,28 @@ export async function createLocalStore(db) {
       ? FILTERS[filter]
       : FILTERS.inbox;
     const res = await db.execute(
-      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction FROM messages WHERE ${where} ORDER BY received_at DESC`,
+      `SELECT id, thread_id, sender, subject, received_at, seen, starred, archived, direction, recipient, text FROM messages WHERE ${where} ORDER BY received_at DESC`,
     );
     return res.rows.map(mapRow);
+  }
+
+  // Per-folder UNREAD counts for the sidebar badges (Apple-Mail style: a badge
+  // means "this many unread", not the folder total). Sent has no unread concept,
+  // so it returns 0 (no badge). FILTERS values are hardcoded constants, so the
+  // interpolation here is not an injection surface.
+  async function counts() {
+    const out = {};
+    for (const key of Object.keys(FILTERS)) {
+      if (key === 'sent') {
+        out[key] = 0;
+        continue;
+      }
+      const res = await db.execute(
+        `SELECT COUNT(*) AS n FROM messages WHERE ${FILTERS[key]} AND seen=0`,
+      );
+      out[key] = (res.rows[0] && res.rows[0].n) || 0;
+    }
+    return out;
   }
 
   async function listInbox() {
@@ -306,6 +333,7 @@ export async function createLocalStore(db) {
     rethreadByHeaders,
     listInbox,
     listMessages,
+    counts,
     searchMessages,
     listThread,
     setSeen,
@@ -322,5 +350,10 @@ export async function createLocalStore(db) {
     insertSentMessage,
     setSetting,
     getSetting,
+    // Close and delete the underlying database file (used on sign-out to wipe
+    // the local cache). No-op if the driver doesn't support it.
+    deleteDatabase: () => {
+      if (db && typeof db.delete === 'function') db.delete();
+    },
   };
 }

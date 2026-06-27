@@ -1,12 +1,13 @@
 import React from 'react';
-import {View, Pressable, Text} from 'react-native';
+import {View, Pressable} from 'react-native';
 import RichEditorView, {commands} from '../native/RichEditorView';
+import Symbol from '../native/Symbol';
 import {docModelToHtml} from '../editor/docModelToHtml';
 import {collectInlineImages} from '../editor/collectInlineImages';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE} from './designTokens';
 
-function ToolbarButton({label, onPress, children, color}) {
+function ToolbarButton({label, onPress, symbol, color}) {
   return (
     <Pressable
       accessibilityLabel={label}
@@ -20,9 +21,7 @@ function ToolbarButton({label, onPress, children, color}) {
         backgroundColor: hovered || pressed ? color.hover : 'transparent',
       })}
     >
-      <Text style={{...TYPE.button, fontWeight: '600', color: color.text}}>
-        {children}
-      </Text>
+      <Symbol name={symbol} size={15} color={color.text} />
     </Pressable>
   );
 }
@@ -30,7 +29,7 @@ function ToolbarButton({label, onPress, children, color}) {
 // A rich-text composer: a native NSTextView editor with a formatting toolbar.
 // onChange reports the email HTML and the inline images extracted from the
 // editor's document model (consumed by the reply/send pipeline in M6).
-export default function Composer({onChange}) {
+export default function Composer({onChange, onSubmit, onContentSize}) {
   const theme = useTheme();
   const handleNativeChange = e => {
     const model = e && e.nativeEvent ? e.nativeEvent.model : null;
@@ -40,6 +39,10 @@ export default function Composer({onChange}) {
         inlineImages: collectInlineImages(model),
       });
     }
+  };
+  // ⌘↵ inside the native editor → send.
+  const handleNativeSubmit = () => {
+    if (onSubmit) onSubmit();
   };
 
   const btnColor = {text: theme.text, hover: theme.hover};
@@ -56,25 +59,21 @@ export default function Composer({onChange}) {
           borderBottomColor: theme.divider,
         }}
       >
-        <ToolbarButton label="Bold" onPress={commands.bold} color={btnColor}>
-          B
-        </ToolbarButton>
-        <ToolbarButton label="Italic" onPress={commands.italic} color={btnColor}>
-          i
-        </ToolbarButton>
-        <ToolbarButton label="Underline" onPress={commands.underline} color={btnColor}>
-          U
-        </ToolbarButton>
-        <ToolbarButton label="Bulleted list" onPress={commands.bulletList} color={btnColor}>
-          •
-        </ToolbarButton>
-        <ToolbarButton label="Numbered list" onPress={commands.numberList} color={btnColor}>
-          1.
-        </ToolbarButton>
+        <ToolbarButton label="Bold" onPress={commands.bold} symbol="bold" color={btnColor} />
+        <ToolbarButton label="Italic" onPress={commands.italic} symbol="italic" color={btnColor} />
+        <ToolbarButton label="Underline" onPress={commands.underline} symbol="underline" color={btnColor} />
+        <ToolbarButton label="Bulleted list" onPress={commands.bulletList} symbol="list.bullet" color={btnColor} />
+        <ToolbarButton label="Numbered list" onPress={commands.numberList} symbol="list.number" color={btnColor} />
       </View>
       <RichEditorView
-        style={{flex: 1, minHeight: 80, ...TYPE.body, color: theme.text}}
+        style={{flex: 1, minHeight: 60, ...TYPE.body, color: theme.text}}
         onChange={handleNativeChange}
+        onSubmit={handleNativeSubmit}
+        onContentSizeChange={
+          onContentSize
+            ? e => onContentSize(e && e.nativeEvent ? e.nativeEvent.height : 0)
+            : undefined
+        }
       />
     </View>
   );

@@ -24,6 +24,10 @@ test('changes theme, persists From on blur, and signs out', () => {
   fireEvent(input, 'blur');
   expect(onChangeFrom).toHaveBeenCalledWith('other@you.com');
 
+  // Sign out is a two-step confirm: first press reveals the confirmation, the
+  // second (the danger button) actually signs out.
+  fireEvent.press(getByText('Sign out'));
+  expect(onSignOut).not.toHaveBeenCalled();
   fireEvent.press(getByText('Sign out'));
   expect(onSignOut).toHaveBeenCalled();
 });

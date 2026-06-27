@@ -79,3 +79,20 @@ test('assembleForwardPayload quotes the original and re-attaches files as base64
     {filename: 'doc.pdf', content: 'BBBB', content_type: 'application/pdf'},
   ]);
 });
+
+test('compose and forward include user-attached files in the payload', () => {
+  const file = {filename: 'doc.pdf', content: 'QkFTRTY0', content_type: 'application/pdf'};
+  const c = assembleComposePayload({
+    from: 'me@you.com', to: ['a@x.com'], subject: 'Hi', html: '<p>x</p>',
+    attachments: [file],
+  });
+  expect(c.attachments).toContainEqual(file);
+
+  const f = assembleForwardPayload({
+    from: 'me@you.com', to: 'c@z.com',
+    original: {from: 'A <a@x.com>', subject: 'Deal', receivedAt: 'now'},
+    originalHtml: '<p>d</p>', replyHtml: '<p>fwd</p>',
+    originalAttachments: [], attachments: [file],
+  });
+  expect(f.attachments).toContainEqual(file);
+});

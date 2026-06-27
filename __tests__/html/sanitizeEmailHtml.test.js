@@ -71,3 +71,12 @@ test('blanks a remote img whose src has leading whitespace (no CSP-only reliance
   const out = sanitizeEmailHtml('<img src="   https://tracker/x.gif">', {allowRemote: false});
   expect(out).not.toContain('tracker/x.gif');
 });
+
+test('hasRemoteContent detects remote images but not plain text or cid/data', () => {
+  const {hasRemoteContent} = require('../../src/html/sanitizeEmailHtml');
+  expect(hasRemoteContent('<p>Prueba de recepcion</p>')).toBe(false);
+  expect(hasRemoteContent('<img src="cid:logo">')).toBe(false);
+  expect(hasRemoteContent('<img src="data:image/png;base64,AAAA">')).toBe(false);
+  expect(hasRemoteContent('<img src="https://tracker/x.gif">')).toBe(true);
+  expect(hasRemoteContent('<div style="background:url(http://t/p.gif)">x</div>')).toBe(true);
+});

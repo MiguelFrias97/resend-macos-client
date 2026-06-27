@@ -88,11 +88,29 @@ export function createMailSource({apiKey, fetchImpl} = {}) {
     return res;
   }
 
+  // The account's verified sending domains, so the UI can offer a real From
+  // picker and warn before sending from an unverified domain. Best-effort:
+  // returns [] on any failure (it only powers a hint).
+  async function listVerifiedDomains() {
+    try {
+      const res = await client.request('/domains');
+      if (res.status !== 200) return [];
+      const body = await res.json();
+      const data = Array.isArray(body.data) ? body.data : [];
+      return data
+        .filter(d => d && d.status === 'verified' && typeof d.name === 'string')
+        .map(d => d.name);
+    } catch (e) {
+      return [];
+    }
+  }
+
   return {
     listReceived,
     listAllReceived,
     getReceivedEmail,
     getAttachment,
     downloadBytes,
+    listVerifiedDomains,
   };
 }

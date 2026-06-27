@@ -14,6 +14,12 @@ export function clearApiKey() {
   return Keychain.clearApiKey(SERVICE);
 }
 
+// Remove the at-rest DB encryption key (used on sign-out, after wiping the
+// cache, so the next sign-in mints a fresh key for a fresh database).
+export function clearDbKey() {
+  return Keychain.clearApiKey(DB_KEY_SERVICE);
+}
+
 // Thrown when the Keychain item exists but can't be read (access denied, e.g.
 // the user clicked "Deny" on the prompt an ad-hoc-signed build triggers, or the
 // keychain is locked). Distinct from "absent", which is a normal first run.

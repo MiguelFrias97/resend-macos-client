@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, Pressable} from 'react-native';
+import Symbol from '../native/Symbol';
 import {useTheme} from './useTheme';
 import {isEmail} from '../compose/assembleCompose';
 import {SP, RADIUS, TYPE} from './designTokens';
@@ -68,10 +69,13 @@ export default function RecipientField({label, placeholder, value = [], onChange
               borderRadius: RADIUS.pill,
               backgroundColor: valid ? theme.accent + '1A' : theme.danger + '1A',
             }}>
-            <Text
-              style={{fontSize: 12.5, color: valid ? theme.accent : theme.danger}}>
-              {valid ? `${addr} ✕` : `⚠ ${addr} ✕`}
+            {!valid ? (
+              <Symbol name="exclamationmark.triangle.fill" size={11} color={theme.danger} />
+            ) : null}
+            <Text style={{fontSize: 12.5, color: valid ? theme.accent : theme.danger}}>
+              {addr}
             </Text>
+            <Symbol name="xmark" size={10} color={valid ? theme.accent : theme.danger} />
           </Pressable>
         );
       })}

@@ -1,19 +1,54 @@
-import React, {useRef, useState} from 'react';
-import {View, Text, Pressable} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {View} from 'react-native';
 import Composer from './Composer';
+import ComposerFooter from './ComposerFooter';
+import OutgoingAttachments from './OutgoingAttachments';
 import {assembleReplyPayload} from '../reply/assembleReply';
+import {pickAttachments} from '../native/AttachmentFile';
 import {useTheme} from './useTheme';
-import {SP, RADIUS, TYPE} from './designTokens';
+import {SP} from './designTokens';
 
 export default function ReplyComposer({original, originalHtml, from, onSend}) {
   const theme = useTheme();
   const contentRef = useRef({html: '', inlineImages: []});
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
   const [status, setStatus] = useState('idle');
   const [errorText, setErrorText] = useState('');
+  const [files, setFiles] = useState([]);
+  // Grow the editor with its content, between a compact min and a scroll-after max.
+  const MIN_TEXT = 56;
+  const MAX_TEXT = 240;
+  const [textHeight, setTextHeight] = useState(MIN_TEXT);
+  const onContentSize = h =>
+    setTextHeight(Math.max(MIN_TEXT, Math.min(MAX_TEXT, Math.ceil(h || 0))));
 
   const handleChange = next => {
     contentRef.current = next;
   };
+
+  const handleAttach = async () => {
+    try {
+      const picked = await pickAttachments();
+      if (picked && picked.length) {
+        setFiles(prev => [
+          ...prev,
+          ...picked.map(f => ({
+            filename: f.filename,
+            content: f.content,
+            content_type: f.contentType,
+            size: f.size,
+            tooLarge: f.tooLarge,
+          })),
+        ]);
+      }
+    } catch (e) {
+      // cancelled / failed
+    }
+  };
+  const removeFile = i => setFiles(prev => prev.filter((_, idx) => idx !== i));
 
   const send = async () => {
     setStatus('sending');
@@ -25,9 +60,15 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
       originalHtml,
       from,
       inlineImages: content.inlineImages,
+      attachments: files
+        .filter(f => !f.tooLarge && f.content)
+        .map(f => ({filename: f.filename, content: f.content, content_type: f.content_type})),
     });
     try {
       const res = await onSend(payload);
+      // The reply composer unmounts on success (setReplying(false)); don't set
+      // state once unmounted.
+      if (!mountedRef.current) return;
       if (res && res.ok === false) {
         setErrorText((res.error && res.error.message) || String(res.error || ''));
         setStatus('failed');
@@ -35,6 +76,7 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
         setStatus('sent');
       }
     } catch (e) {
+      if (!mountedRef.current) return;
       setErrorText(e.message || '');
       setStatus('failed');
     }
@@ -48,42 +90,22 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
         backgroundColor: theme.bg,
         padding: SP(3),
       }}>
-      <View style={{minHeight: 80}}>
-        <Composer onChange={handleChange} />
+      {/* Explicit height (auto-grows with content via onContentSize): the native
+          NSView editor must occupy a bounded box, or it overflows and covers the
+          footer (native views capture mouse over their frame), making Send
+          unclickable. Height = toolbar (32) + text + padding (12). */}
+      <View style={{height: 32 + textHeight + 12}}>
+        <Composer onChange={handleChange} onSubmit={send} onContentSize={onContentSize} />
       </View>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: SP(2),
-          marginTop: SP(2.5),
-        }}>
-        {status === 'sent' ? (
-          <Text style={{...TYPE.meta, color: theme.success}}>Sent</Text>
-        ) : null}
-        {status === 'failed' ? (
-          <Pressable onPress={send}>
-            <Text style={{...TYPE.meta, color: theme.danger}}>
-              {errorText ? `${errorText} — Retry` : 'Failed — Retry'}
-            </Text>
-          </Pressable>
-        ) : null}
-        <Pressable
-          onPress={send}
-          disabled={status === 'sending'}
-          style={{
-            height: 28,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: SP(4),
-            borderRadius: RADIUS.sm,
-            backgroundColor: theme.accent,
-          }}>
-          <Text style={{...TYPE.button, color: '#fff'}}>
-            {status === 'sending' ? 'Sending…' : 'Send'}
-          </Text>
-        </Pressable>
+      <View style={{marginTop: SP(2.5)}}>
+        <OutgoingAttachments files={files} onRemove={removeFile} />
+        <ComposerFooter
+          status={status}
+          errorText={errorText}
+          onSend={send}
+          onAttach={handleAttach}
+          theme={theme}
+        />
       </View>
     </View>
   );

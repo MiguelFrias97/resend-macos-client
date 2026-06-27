@@ -78,3 +78,20 @@ test('downloadBytes allows https urls', async () => {
   const res = await source.downloadBytes('https://d.example.com/file');
   expect(res.status).toBe(200);
 });
+
+test('listVerifiedDomains returns only verified domain names', async () => {
+  const body = {data: [
+    {name: 'good.com', status: 'verified'},
+    {name: 'pending.com', status: 'pending'},
+    {name: 'also.com', status: 'verified'},
+  ]};
+  const fetchImpl = async () => ({status: 200, json: async () => body});
+  const source = createMailSource({apiKey: 're_x', fetchImpl});
+  expect(await source.listVerifiedDomains()).toEqual(['good.com', 'also.com']);
+});
+
+test('listVerifiedDomains returns [] on error (best-effort hint)', async () => {
+  const fetchImpl = async () => ({status: 401, json: async () => ({})});
+  const source = createMailSource({apiKey: 're_x', fetchImpl});
+  expect(await source.listVerifiedDomains()).toEqual([]);
+});

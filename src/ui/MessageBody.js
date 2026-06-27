@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, ActivityIndicator} from 'react-native';
 import MessageBodyView from '../native/MessageBodyView';
-import {sanitizeEmailHtml} from '../html/sanitizeEmailHtml';
+import {sanitizeEmailHtml, hasRemoteContent} from '../html/sanitizeEmailHtml';
 import {useTheme} from './useTheme';
 import {SP} from './designTokens';
 
@@ -34,6 +34,9 @@ export default function MessageBody({messageId, allowRemote = false, deps}) {
           if (!cancelled) setCacheDir(dir || '');
         }
         if (!cancelled) setHtml(bodyHtml || '');
+        if (!cancelled && deps.onRemoteContent) {
+          deps.onRemoteContent(messageId, hasRemoteContent(bodyHtml || ''));
+        }
         if (!cancelled && deps.onLoaded) deps.onLoaded(messageId);
       } catch (e) {
         if (!cancelled) setError(e.message || 'Failed to load message');
@@ -58,12 +61,28 @@ export default function MessageBody({messageId, allowRemote = false, deps}) {
       </View>
     );
   }
+  // Present the message on an intentional light "document" surface (framed,
+  // inset, aligned under the sender) rather than a raw white bleed against the
+  // dark chrome.
   return (
-    <MessageBodyView
-      style={{flex: 1, maxWidth: 600, marginTop: SP(3.25), marginLeft: 45}}
-      html={sanitizeEmailHtml(html, {allowRemote})}
-      allowRemote={allowRemote}
-      cacheDir={cacheDir}
-    />
+    <View
+      style={{
+        flex: 1,
+        marginTop: SP(3),
+        marginLeft: SP(7),
+        marginRight: SP(4),
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: theme.border,
+        backgroundColor: '#ffffff',
+        overflow: 'hidden',
+      }}>
+      <MessageBodyView
+        style={{flex: 1, backgroundColor: '#ffffff'}}
+        html={sanitizeEmailHtml(html, {allowRemote, accentColor: theme.accent})}
+        allowRemote={allowRemote}
+        cacheDir={cacheDir}
+      />
+    </View>
   );
 }

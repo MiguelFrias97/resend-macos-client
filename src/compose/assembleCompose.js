@@ -40,7 +40,7 @@ export function assembleComposePayload({from, to, cc, bcc, subject, html, inline
   return payload;
 }
 
-export function assembleForwardPayload({from, to, original, originalHtml, replyHtml, inlineImages = [], originalAttachments = []}) {
+export function assembleForwardPayload({from, to, original, originalHtml, replyHtml, inlineImages = [], originalAttachments = [], attachments = []}) {
   // Forwarded files carry their bytes as base64 `content` so the attachment
   // survives an outbox retry (a presigned URL would expire).
   const forwarded = originalAttachments.map(a => ({
@@ -53,6 +53,7 @@ export function assembleForwardPayload({from, to, original, originalHtml, replyH
     to: parseRecipients(to),
     subject: forwardSubject(original.subject),
     html: `${replyHtml || ''}${quoteOriginal(original, originalHtml)}`,
-    attachments: [...inlineAttachmentParts(inlineImages), ...forwarded],
+    // forwarded original files + any user-attached files (already Resend-shaped).
+    attachments: [...inlineAttachmentParts(inlineImages), ...forwarded, ...attachments],
   };
 }

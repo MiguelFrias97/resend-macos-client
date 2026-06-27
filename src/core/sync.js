@@ -68,5 +68,9 @@ export function startSyncLoop({
   };
   tick();
   const handle = schedule(tick, intervalMs);
-  return () => clearInterval(handle);
+  // The returned value is callable as the stop function (back-compatible) and
+  // also carries `syncNow` so the UI can trigger an immediate sync.
+  const stop = () => clearInterval(handle);
+  stop.syncNow = tick;
+  return stop;
 }

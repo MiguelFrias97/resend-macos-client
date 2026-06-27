@@ -70,6 +70,24 @@ fi
 echo "==> Installing to $DEST (replacing any existing copy)"
 rm -rf "$DEST/$(basename "$APP")"
 cp -R "$APP" "$DEST/"
+INSTALLED="$DEST/$(basename "$APP")"
 
-echo "==> Done: $DEST/$(basename "$APP")"
-echo "    Launch it from Launchpad/Spotlight, or: open '$DEST/$(basename "$APP")'"
+# If a stable self-signed identity exists (npm run setup-signing), re-sign the
+# installed app with it so macOS can persist "Always Allow" for the Keychain and
+# stop prompting on every launch. Best-effort: the build stays ad-hoc, so this
+# never blocks the install.
+SIGN_IDENTITY="ResendMail Local"
+if security find-identity -p codesigning 2>/dev/null | grep -q "$SIGN_IDENTITY"; then
+  if codesign --force --deep --sign "$SIGN_IDENTITY" "$INSTALLED" >/dev/null 2>&1; then
+    echo "==> Re-signed with stable identity ('$SIGN_IDENTITY')."
+    echo "    Click \"Always Allow\" on the next Keychain prompts — they won't return."
+  else
+    echo "==> Note: could not re-sign with '$SIGN_IDENTITY'; left ad-hoc signed."
+  fi
+else
+  echo "==> Tip: run 'npm run setup-signing' once to stop the repeated Keychain"
+  echo "    password prompts (gives the app a stable signature; no security loss)."
+fi
+
+echo "==> Done: $INSTALLED"
+echo "    Launch it from Launchpad/Spotlight, or: open '$INSTALLED'"

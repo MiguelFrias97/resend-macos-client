@@ -83,3 +83,22 @@ test('startSyncLoop calls onError when syncOnce throws', async () => {
   expect(errors).toHaveLength(1);
   expect(errors[0].message).toBe('boom');
 });
+
+test('startSyncLoop exposes syncNow for a manual refresh', async () => {
+  let calls = 0;
+  const source = {
+    listReceived: async () => {
+      calls += 1;
+      return [];
+    },
+  };
+  const store = {upsertMessage: async () => {}};
+  const stop = startSyncLoop({source, store, schedule: () => 0});
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(calls).toBe(1); // initial tick
+  expect(typeof stop.syncNow).toBe('function');
+  await stop.syncNow(); // manual refresh
+  expect(calls).toBe(2);
+  stop();
+});

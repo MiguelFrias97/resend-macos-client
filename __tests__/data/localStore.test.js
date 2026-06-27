@@ -344,3 +344,34 @@ test('setFlag rejects a column outside the allowlist (no SQL injection sink)', a
   expect(typeof store.setSeen).toBe('function');
   expect(typeof store.setArchived).toBe('function');
 });
+
+test('deleteDatabase wipes the underlying db (sign-out cache wipe)', async () => {
+  let deleted = false;
+  const db = {
+    async execute() { return {rows: []}; },
+    delete() { deleted = true; },
+  };
+  const store = await createLocalStore(db);
+  store.deleteDatabase();
+  expect(deleted).toBe(true);
+});
+
+test('counts() returns unread counts (seen=0) and 0 for sent', async () => {
+  const queries = [];
+  const db = {
+    async execute(sql) {
+      queries.push(sql);
+      return {rows: [{n: 3}]};
+    },
+  };
+  const store = await createLocalStore(db);
+  queries.length = 0;
+  const c = await store.counts();
+  // every received-folder count query is scoped to unread (seen=0)...
+  const countQueries = queries.filter(q => /COUNT\(\*\)/.test(q));
+  expect(countQueries.length).toBeGreaterThan(0);
+  expect(countQueries.every(q => /seen=0/.test(q))).toBe(true);
+  // ...and sent has no unread badge (no query, value 0).
+  expect(c.sent).toBe(0);
+  expect(countQueries.some(q => /direction='sent'/.test(q))).toBe(false);
+});

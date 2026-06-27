@@ -10,7 +10,7 @@ import ComposeSheet from './ComposeSheet';
 import SettingsScreen from './SettingsScreen';
 import EmptyState from './EmptyState';
 import {useTheme} from './useTheme';
-import {SP, RADIUS, TYPE} from './designTokens';
+import {SP, RADIUS, TYPE, ELEV} from './designTokens';
 import {setOverride} from './themeOverride';
 import {notify} from '../native/Notifications';
 import {createLocalStore} from '../data/localStore';
@@ -19,7 +19,10 @@ import {createMailSource} from '../net/mailSource';
 import {createSender} from '../net/sender';
 import {startSyncLoop} from '../core/sync';
 import {sendReply, processOutbox} from '../core/outbox';
-import {clearApiKey} from '../native/Keychain';
+import {clearApiKey, clearDbKey} from '../native/Keychain';
+import Symbol from '../native/Symbol';
+import ScreenTransition from './ScreenTransition';
+import {onMenuCommand} from '../native/MenuEvents';
 import {replyPayloadError} from '../reply/assembleReply';
 import {isEmail} from '../compose/assembleCompose';
 import {
@@ -35,9 +38,11 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const [selected, setSelected] = useState(null);
   const [thread, setThread] = useState([]);
   const [filter, setFilter] = useState('inbox');
+  const [counts, setCounts] = useState({});
   const [query, setQuery] = useState('');
   const [error, setError] = useState(null);
   const [allowRemote, setAllowRemote] = useState(false);
+  const [hasRemoteImages, setHasRemoteImages] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [ready, setReady] = useState(false);
   const [initError, setInitError] = useState(null);
@@ -47,7 +52,18 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const [composeMode, setComposeMode] = useState(null); // null | 'compose' | 'forward'
   const [forwardData, setForwardData] = useState(null);
   const [fromIdentity, setFromIdentity] = useState('');
+  const [verifiedDomains, setVerifiedDomains] = useState([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sentToast, setSentToast] = useState('');
+  const sentToastTimer = useRef(null);
+
+  // Shell-level confirmation that a message left — the composer often unmounts
+  // before its own "Sent" can be seen.
+  const flashSent = (msg = 'Message sent') => {
+    setSentToast(msg);
+    if (sentToastTimer.current) clearTimeout(sentToastTimer.current);
+    sentToastTimer.current = setTimeout(() => setSentToast(''), 2500);
+  };
   const [themeChoice, setThemeChoice] = useState('auto');
   const servicesRef = useRef(null);
   const outboxBusyRef = useRef(false);
@@ -56,6 +72,23 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const selectedRef = useRef(null);
   const listSeqRef = useRef(0);
   const searchTimerRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const menuHandlerRef = useRef(() => {});
+  const syncNowRef = useRef(null);
+  const stopSyncRef = useRef(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const onRefresh = async () => {
+    if (!syncNowRef.current || syncing) return;
+    setSyncing(true);
+    try {
+      await syncNowRef.current();
+    } catch (e) {
+      // errors surface via the sync-error banner; nothing extra here
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Load the message list for the current filter/search, reading from refs so
   // the sync tick and effects all use the latest values. A sequence guard drops
@@ -70,6 +103,15 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       ? await services.store.searchMessages(q)
       : await services.store.listMessages(filterRef.current);
     if (seq === listSeqRef.current) setMessages(list);
+    // Refresh sidebar counts alongside the list (best-effort).
+    if (services.store.counts) {
+      try {
+        const c = await services.store.counts();
+        if (seq === listSeqRef.current) setCounts(c);
+      } catch (e) {
+        // counts are decorative; ignore failures
+      }
+    }
   };
 
   useEffect(() => {
@@ -101,6 +143,15 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       setReady(true);
       const savedFrom = await store.getSetting('fromIdentity');
       if (!cancelled && savedFrom) setFromIdentity(savedFrom);
+      // Verified sending domains power the From picker/validation (best-effort).
+      if (source.listVerifiedDomains) {
+        source
+          .listVerifiedDomains()
+          .then(d => {
+            if (!cancelled) setVerifiedDomains(d || []);
+          })
+          .catch(() => {});
+      }
       const savedTheme = await store.getSetting('themeOverride');
       if (!cancelled && savedTheme) {
         setThemeChoice(savedTheme);
@@ -134,6 +185,8 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
         },
       });
       stop = () => stopSync();
+      syncNowRef.current = stopSync.syncNow;
+      stopSyncRef.current = stopSync;
     })();
     return () => {
       cancelled = true;
@@ -141,6 +194,20 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, [apiKey, makeStore, makeSource, bootSeq]);
+
+  // Subscribe once to native app-menu commands; the listener reads the latest
+  // handler from the ref (assigned every render), so it never goes stale and the
+  // root view never needs focus.
+  useEffect(() => onMenuCommand(c => menuHandlerRef.current(c)), []);
+
+  // Clear the transient "Message sent" timer on unmount (e.g. sign-out within
+  // 2.5s of a send) so it doesn't fire setState on an unmounted component.
+  useEffect(
+    () => () => {
+      if (sentToastTimer.current) clearTimeout(sentToastTimer.current);
+    },
+    [],
+  );
 
   const retryInit = () => {
     setInitError(null);
@@ -220,6 +287,12 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
           return '';
         }
       },
+      onRemoteContent: (id, has) => {
+        // The "Load images" toggle is global (allowRemote applies to every body),
+        // so surface it if ANY rendered message in the open thread has blocked
+        // remote content — not just the selected one. Reset happens on select.
+        if (has) setHasRemoteImages(true);
+      },
       onLoaded: async id => {
         // The thread renders several bodies; only the clicked message drives
         // the attachment tray.
@@ -234,6 +307,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
 
   const onSelect = async msg => {
     setAllowRemote(false);
+    setHasRemoteImages(false);
     setAttachments([]);
     setReplying(false);
     setOriginalHtml('');
@@ -300,10 +374,29 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   };
 
   const onSignOutPressed = async () => {
+    // Stop the sync loop FIRST so a scheduled/in-flight tick can't run a query
+    // against the database we're about to delete.
+    try {
+      if (stopSyncRef.current) stopSyncRef.current();
+    } catch (e) {
+      // ignore
+    }
+    // Wipe the local mailbox cache so signing in with a different key can't
+    // surface the previous account's mail (the cache is keyed by message id,
+    // not account). The cache is disposable — it re-syncs from Resend.
+    try {
+      const services = servicesRef.current;
+      if (services && services.store && services.store.deleteDatabase) {
+        services.store.deleteDatabase();
+      }
+    } catch (e) {
+      // best-effort; continue clearing credentials regardless
+    }
     try {
       await clearApiKey();
+      await clearDbKey();
     } catch (e) {
-      // ignore — we still sign out of the session below.
+      // ignore — we still drop the session below.
     }
     if (onSignOut) onSignOut();
   };
@@ -328,7 +421,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       receivedAt: new Date().toISOString(),
       html: payload.html,
     };
-    return sendReply({
+    const res = await sendReply({
       store,
       sender,
       id,
@@ -336,6 +429,12 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       payload,
       sentMessage,
     });
+    if (res && res.ok) {
+      flashSent();
+      setComposeMode(null);
+      setForwardData(null);
+    }
+    return res;
   };
 
   const startForward = async () => {
@@ -399,6 +498,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     });
     if (res && res.ok) {
       setReplying(false);
+      flashSent();
       // Reflect the new sent reply in the conversation.
       setThread(await store.listThread(selected.threadId));
     }
@@ -467,16 +567,118 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
             backgroundColor: theme.accent,
           }}
         >
-          <Text style={{...TYPE.button, color: '#fff'}}>Retry</Text>
+          <Text style={{...TYPE.button, color: theme.onAccent}}>Retry</Text>
         </Pressable>
       </View>
     );
   }
 
+  // Keyboard shortcuts come from the native app menu (AppDelegate's Message menu:
+  // ⌘N / ⌘R / ⌘⇧F), relayed via MenuEvents. We keep the handler in a ref updated
+  // every render so the once-only subscription always sees current state — and so
+  // the root view never has to be focusable (which swallowed mouse clicks before).
+  menuHandlerRef.current = cmd => {
+    // Ignore menu shortcuts while a full-window screen is already open, so e.g.
+    // ⌘N while typing in compose/settings doesn't reset or stack a screen.
+    if (composeMode || settingsOpen) return;
+    if (cmd === 'compose') {
+      setForwardData(null);
+      setComposeMode('compose');
+    } else if (cmd === 'reply') {
+      if (selected && !replying) startReply();
+    } else if (cmd === 'forward') {
+      if (selected) startForward();
+    }
+  };
+
+  // Settings / Compose are rendered as full-window screens (early return) rather
+  // than overlays on top of the inbox. On react-native-macos, native views (the
+  // message-list FlatList, the WKWebView) paint ABOVE sibling RN views, so an
+  // absolute overlay gets occluded by them — which made Settings (and its Sign
+  // out) appear not to open. Unmounting the panes while a screen is open fixes it.
+  if (settingsOpen) {
+    return (
+      <ScreenTransition
+        style={{
+          backgroundColor: theme.bg,
+          alignItems: 'center',
+          paddingTop: SP(10),
+        }}>
+        <View
+          style={{
+            width: 480,
+            maxWidth: '92%',
+            maxHeight: '90%',
+            borderRadius: RADIUS.lg,
+            backgroundColor: theme.bg,
+            borderWidth: 1,
+            borderColor: theme.border,
+            overflow: 'hidden',
+            ...ELEV.sheet,
+          }}>
+          <SettingsScreen
+            defaultFrom={fromIdentity}
+            onChangeFrom={onChangeFrom}
+            verifiedDomains={verifiedDomains}
+            themeOverride={themeChoice}
+            onChangeTheme={onChangeTheme}
+            onSignOut={onSignOutPressed}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </View>
+      </ScreenTransition>
+    );
+  }
+  if (composeMode) {
+    return (
+      <ScreenTransition
+        style={{
+          backgroundColor: theme.bg,
+          alignItems: 'center',
+          paddingTop: SP(8),
+          paddingBottom: SP(6),
+        }}>
+        <ComposeSheet
+          mode={composeMode}
+          defaultFrom={fromIdentity}
+          verifiedDomains={verifiedDomains}
+          forward={forwardData}
+          onChangeFrom={onChangeFrom}
+          onSend={onSendMail}
+          onClose={() => {
+            setComposeMode(null);
+            setForwardData(null);
+          }}
+        />
+      </ScreenTransition>
+    );
+  }
+
   return (
     <View style={{flex: 1, backgroundColor: theme.bg}}>
+      {sentToast ? (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: SP(5),
+            alignSelf: 'center',
+            zIndex: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: SP(2),
+            paddingVertical: SP(2),
+            paddingHorizontal: SP(4),
+            borderRadius: RADIUS.pill,
+            backgroundColor: theme.text,
+            ...ELEV.popover,
+          }}
+        >
+          <Symbol name="checkmark.circle.fill" size={15} color={theme.bg} />
+          <Text style={{...TYPE.button, color: theme.bg}}>{sentToast}</Text>
+        </View>
+      ) : null}
       <View style={{flex: 1, flexDirection: 'row'}}>
-        <Sidebar selected={filter} onSelect={onFilter} />
+        <Sidebar selected={filter} onSelect={onFilter} counts={counts} />
         <View
           style={{
             width: 340,
@@ -498,32 +700,54 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
           >
             <Pressable
               onPress={() => setComposeMode('compose')}
-              style={{
-                height: 28,
-                paddingHorizontal: SP(2),
-                borderRadius: RADIUS.sm,
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{...TYPE.button, color: theme.textMuted}}>
-                ＋ Compose
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityLabel="Settings"
-              onPress={() => setSettingsOpen(true)}
-              style={{
-                width: 30,
-                height: 28,
-                borderRadius: RADIUS.sm,
+              style={({hovered, pressed}) => ({
+                flexDirection: 'row',
                 alignItems: 'center',
+                gap: SP(1.5),
+                height: 28,
+                paddingHorizontal: SP(2.5),
+                borderRadius: RADIUS.sm,
                 justifyContent: 'center',
-              }}
+                backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+              })}
             >
-              <Text style={{...TYPE.button, color: theme.textMuted}}>⚙</Text>
+              <Symbol name="square.and.pencil" size={15} color={theme.accent} />
+              <Text style={{...TYPE.button, color: theme.text}}>Compose</Text>
             </Pressable>
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: SP(0.5)}}>
+              <Pressable
+                accessibilityLabel="Refresh"
+                onPress={onRefresh}
+                disabled={syncing}
+                style={({hovered, pressed}) => ({
+                  width: 30,
+                  height: 28,
+                  borderRadius: RADIUS.sm,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: syncing ? 0.5 : 1,
+                  backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+                })}
+              >
+                <Symbol name="arrow.clockwise" size={15} color={theme.textMuted} />
+              </Pressable>
+              <Pressable
+                accessibilityLabel="Settings"
+                onPress={() => setSettingsOpen(true)}
+                style={({hovered, pressed}) => ({
+                  width: 30,
+                  height: 28,
+                  borderRadius: RADIUS.sm,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+                })}
+              >
+                <Symbol name="gearshape" size={16} color={theme.textMuted} />
+              </Pressable>
+            </View>
           </View>
-          <SearchBar value={query} onChange={onQuery} />
+          <SearchBar value={query} onChange={onQuery} inputRef={searchInputRef} />
           {error ? (
             <View
               style={{
@@ -561,38 +785,82 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
+                  gap: SP(2),
+                  paddingHorizontal: SP(7),
+                  paddingVertical: SP(2.5),
                   borderBottomWidth: 1,
                   borderBottomColor: theme.divider,
                 }}
               >
                 <Text
-                  style={{fontSize: 16, fontWeight: '600', flex: 1, color: theme.text}}
+                  style={{...TYPE.title, flex: 1, color: theme.text}}
                   numberOfLines={1}
                 >
                   {selected.subject}
                 </Text>
-                {!allowRemote ? (
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: SP(2)}}>
+                  {hasRemoteImages && !allowRemote ? (
+                    <Pressable
+                      onPress={() => setAllowRemote(true)}
+                      style={({hovered, pressed}) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: SP(1.5),
+                        height: 28,
+                        paddingHorizontal: SP(3),
+                        borderRadius: RADIUS.sm,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        justifyContent: 'center',
+                        backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+                      })}
+                    >
+                      <Symbol name="photo" size={14} color={theme.text} />
+                      <Text style={{...TYPE.button, color: theme.text}}>
+                        Load images
+                      </Text>
+                    </Pressable>
+                  ) : null}
                   <Pressable
-                    onPress={() => setAllowRemote(true)}
-                    style={{marginLeft: 12}}
+                    onPress={startForward}
+                    style={({hovered, pressed}) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: SP(1.5),
+                      height: 28,
+                      paddingHorizontal: SP(3),
+                      borderRadius: RADIUS.sm,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      justifyContent: 'center',
+                      backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+                    })}
                   >
-                    <Text style={{color: theme.accent}}>Load remote images</Text>
+                    <Symbol name="arrowshape.turn.up.right" size={14} color={theme.text} />
+                    <Text style={{...TYPE.button, color: theme.text}}>Forward</Text>
                   </Pressable>
-                ) : null}
-                {!replying ? (
-                  <Pressable onPress={startReply} style={{marginLeft: 12}}>
-                    <Text style={{color: theme.accent, fontWeight: '600'}}>
-                      Reply
-                    </Text>
-                  </Pressable>
-                ) : null}
-                <Pressable onPress={startForward} style={{marginLeft: 12}}>
-                  <Text style={{color: theme.accent, fontWeight: '600'}}>
-                    Forward
-                  </Text>
-                </Pressable>
+                  {!replying ? (
+                    <Pressable
+                      onPress={startReply}
+                      style={({hovered, pressed}) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: SP(1.5),
+                        height: 28,
+                        paddingHorizontal: SP(4),
+                        borderRadius: RADIUS.sm,
+                        backgroundColor: theme.accent,
+                        opacity: hovered || pressed ? 0.9 : 1,
+                        justifyContent: 'center',
+                      })}
+                    >
+                      <Symbol name="arrowshape.turn.up.left" size={14} color={theme.onAccent} />
+                      <Text style={{...TYPE.button, color: theme.onAccent}}>
+                        Reply
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
               <ThreadView
                 messages={thread}
@@ -614,61 +882,30 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
             </View>
           ) : (
             <View
-              style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}
+              style={{flex: 1, alignItems: 'center', justifyContent: 'center', gap: SP(2)}}
             >
-              <Text style={{color: theme.textMuted}}>Select a message</Text>
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: theme.surface2,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Symbol name="envelope" size={24} color={theme.textFaint} />
+              </View>
+              <Text style={{...TYPE.title, fontSize: 15, color: theme.text}}>
+                No message selected
+              </Text>
+              <Text style={{...TYPE.preview, color: theme.textMuted}}>
+                Select a conversation to read it here.
+              </Text>
             </View>
           )}
         </View>
       </View>
-      {composeMode ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.35)',
-            alignItems: 'center',
-            paddingTop: 52,
-            paddingBottom: 24,
-          }}
-        >
-          <ComposeSheet
-            mode={composeMode}
-            defaultFrom={fromIdentity}
-            forward={forwardData}
-            onChangeFrom={onChangeFrom}
-            onSend={onSendMail}
-            onClose={() => {
-              setComposeMode(null);
-              setForwardData(null);
-            }}
-          />
-        </View>
-      ) : null}
-      {settingsOpen ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: theme.bg,
-          }}
-        >
-          <SettingsScreen
-            defaultFrom={fromIdentity}
-            onChangeFrom={onChangeFrom}
-            themeOverride={themeChoice}
-            onChangeTheme={onChangeTheme}
-            onSignOut={onSignOutPressed}
-            onClose={() => setSettingsOpen(false)}
-          />
-        </View>
-      ) : null}
     </View>
   );
 }

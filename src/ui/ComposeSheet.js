@@ -1,7 +1,11 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {View, Text, TextInput, Pressable} from 'react-native';
 import Composer from './Composer';
+import ComposerFooter from './ComposerFooter';
+import OutgoingAttachments from './OutgoingAttachments';
 import RecipientField from './RecipientField';
+import FromField from './FromField';
+import {pickAttachments} from '../native/AttachmentFile';
 import {useTheme} from './useTheme';
 import {
   assembleComposePayload,
@@ -14,6 +18,7 @@ export default function ComposeSheet({
   defaultFrom = '',
   mode = 'compose',
   forward,
+  verifiedDomains = [],
   onSend,
   onClose,
   onChangeFrom,
@@ -30,8 +35,39 @@ export default function ComposeSheet({
       : '',
   );
   const contentRef = useRef({html: '', inlineImages: []});
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
   const [status, setStatus] = useState('idle');
   const [errorText, setErrorText] = useState('');
+  const [files, setFiles] = useState([]); // staged file attachments
+
+  const handleAttach = async () => {
+    try {
+      const picked = await pickAttachments();
+      if (picked && picked.length) {
+        setFiles(prev => [
+          ...prev,
+          ...picked.map(f => ({
+            filename: f.filename,
+            content: f.content,
+            content_type: f.contentType,
+            size: f.size,
+            tooLarge: f.tooLarge,
+          })),
+        ]);
+      }
+    } catch (e) {
+      // user cancelled / picker failed — nothing to do
+    }
+  };
+  const removeFile = i => setFiles(prev => prev.filter((_, idx) => idx !== i));
+  // Resend parts only (drop UI-only fields, and any file flagged too large).
+  const fileParts = () =>
+    files
+      .filter(f => !f.tooLarge && f.content)
+      .map(f => ({filename: f.filename, content: f.content, content_type: f.content_type}));
 
   // Fill From from a late-arriving saved identity, but never clobber a value the
   // user has already typed.
@@ -62,6 +98,7 @@ export default function ComposeSheet({
             replyHtml: content.html,
             inlineImages: content.inlineImages,
             originalAttachments: forward.originalAttachments,
+            attachments: fileParts(),
           })
         : assembleComposePayload({
             from,
@@ -71,9 +108,13 @@ export default function ComposeSheet({
             subject,
             html: content.html,
             inlineImages: content.inlineImages,
+            attachments: fileParts(),
           });
     try {
       const res = await onSend(payload);
+      // On success the parent may unmount this sheet (auto-dismiss), so don't
+      // touch state once unmounted.
+      if (!mountedRef.current) return;
       if (res && res.ok === false) {
         setErrorText((res.error && res.error.message) || String(res.error || ''));
         setStatus('failed');
@@ -81,18 +122,10 @@ export default function ComposeSheet({
         setStatus('sent');
       }
     } catch (e) {
+      if (!mountedRef.current) return;
       setErrorText(e.message || '');
       setStatus('failed');
     }
-  };
-
-  const fieldStyle = {
-    ...TYPE.meta,
-    color: theme.text,
-    height: 38,
-    paddingHorizontal: SP(2),
-    borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
   };
 
   const subjectStyle = {
@@ -129,7 +162,7 @@ export default function ComposeSheet({
           {mode === 'forward' ? 'Forward' : 'New message'}
         </Text>
         <Pressable onPress={onClose}>
-          <Text style={{...TYPE.button, color: theme.accent}}>Close</Text>
+          <Text style={{...TYPE.button, color: theme.accent}}>Cancel</Text>
         </Pressable>
       </View>
       <View
@@ -155,15 +188,27 @@ export default function ComposeSheet({
           <RecipientField label="Bcc" placeholder="" value={bcc} onChange={setBcc} />
         </>
       ) : null}
-      <TextInput
-        placeholder="From"
-        placeholderTextColor={theme.textMuted}
-        value={from}
-        onChangeText={setFrom}
-        onBlur={persistFrom}
-        autoCapitalize="none"
-        style={fieldStyle}
-      />
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          paddingLeft: SP(2),
+          paddingVertical: SP(1.5),
+          borderBottomWidth: 1,
+          borderBottomColor: theme.divider,
+        }}>
+        <Text style={{...TYPE.meta, width: 56, color: theme.textMuted, marginTop: SP(1)}}>
+          From
+        </Text>
+        <FromField
+          value={from}
+          onChange={setFrom}
+          onBlur={persistFrom}
+          verifiedDomains={verifiedDomains}
+          placeholder="From"
+          style={{flex: 1}}
+        />
+      </View>
       <TextInput
         placeholder="Subject"
         placeholderTextColor={theme.textMuted}
@@ -172,43 +217,22 @@ export default function ComposeSheet({
         style={subjectStyle}
       />
       <View style={{flex: 1, minHeight: 160, paddingHorizontal: SP(2), paddingTop: SP(2)}}>
-        <Composer onChange={handleChange} />
+        <Composer onChange={handleChange} onSubmit={send} />
       </View>
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: SP(2),
           padding: SP(3),
           borderTopWidth: 1,
           borderTopColor: theme.divider,
         }}>
-        {status === 'sent' ? (
-          <Text style={{...TYPE.meta, color: theme.success}}>Sent</Text>
-        ) : null}
-        {status === 'failed' ? (
-          <Pressable onPress={send}>
-            <Text style={{...TYPE.meta, color: theme.danger}}>
-              {errorText ? `${errorText} — Retry` : 'Failed — Retry'}
-            </Text>
-          </Pressable>
-        ) : null}
-        <Pressable
-          onPress={send}
-          disabled={status === 'sending'}
-          style={{
-            height: 28,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: SP(4),
-            borderRadius: RADIUS.sm,
-            backgroundColor: theme.accent,
-          }}>
-          <Text style={{...TYPE.button, color: '#fff'}}>
-            {status === 'sending' ? 'Sending…' : 'Send'}
-          </Text>
-        </Pressable>
+        <OutgoingAttachments files={files} onRemove={removeFile} />
+        <ComposerFooter
+          status={status}
+          errorText={errorText}
+          onSend={send}
+          onAttach={handleAttach}
+          theme={theme}
+        />
       </View>
     </View>
   );

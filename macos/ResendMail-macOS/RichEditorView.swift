@@ -15,6 +15,21 @@ class RichEditorViewManager: RCTViewManager {
   }
 }
 
+// NSTextView that reports ⌘↵ (Cmd+Return/Enter) so the composer can send. A
+// plain Return still inserts a newline as usual.
+class SubmitTextView: NSTextView {
+  var onCmdReturn: (() -> Void)?
+  override func keyDown(with event: NSEvent) {
+    // keyCode 36 = Return, 76 = numeric-keypad Enter.
+    if event.modifierFlags.contains(.command),
+       event.keyCode == 36 || event.keyCode == 76 {
+      onCmdReturn?()
+      return
+    }
+    super.keyDown(with: event)
+  }
+}
+
 // An editable NSTextView (inside a scroll view) that accepts rich text and
 // dropped images, and serializes its content to the JSON document model the
 // JS layer turns into email HTML.
@@ -23,7 +38,7 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
   // on this. Weak so it doesn't outlive the view.
   static weak var active: RichEditorNSView?
 
-  let textView: NSTextView
+  let textView: SubmitTextView
   private let scrollView: NSScrollView
 
   // Caches each inline image's base64 so we don't re-encode the full image on
@@ -31,17 +46,20 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
   private var imageCache: [ObjectIdentifier: String] = [:]
 
   @objc var onChange: RCTBubblingEventBlock?
+  @objc var onSubmit: RCTBubblingEventBlock?
+  @objc var onContentSizeChange: RCTBubblingEventBlock?
+  private var lastReportedHeight: CGFloat = -1
 
   override init(frame frameRect: NSRect) {
     scrollView = NSScrollView(frame: frameRect)
-    textView = NSTextView(frame: scrollView.bounds)
+    textView = SubmitTextView(frame: scrollView.bounds)
     super.init(frame: frameRect)
     configure()
   }
 
   required init?(coder: NSCoder) {
     scrollView = NSScrollView()
-    textView = NSTextView()
+    textView = SubmitTextView()
     super.init(coder: coder)
     configure()
   }
@@ -59,11 +77,19 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
     textView.isHorizontallyResizable = false
     textView.textContainer?.widthTracksTextView = true
 
+    textView.onCmdReturn = { [weak self] in
+      self?.onSubmit?([:])
+    }
+
     scrollView.documentView = textView
     scrollView.hasVerticalScroller = true
     scrollView.autoresizingMask = [.width, .height]
     addSubview(scrollView)
     RichEditorNSView.active = self
+
+    // Report the initial (single-line) height once layout settles, so the JS
+    // container starts compact instead of at a fixed tall box.
+    DispatchQueue.main.async { [weak self] in self?.emitContentHeight() }
   }
 
   override func becomeFirstResponder() -> Bool {
@@ -71,11 +97,25 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
     return super.becomeFirstResponder()
   }
 
+  // The laid-out height of the text, so the JS side can grow the editor with its
+  // content (clamped between a min and a max on the JS side).
+  private func emitContentHeight() {
+    guard let lm = textView.layoutManager, let tc = textView.textContainer else { return }
+    lm.ensureLayout(for: tc)
+    let used = lm.usedRect(for: tc)
+    let height = ceil(used.height + textView.textContainerInset.height * 2)
+    if abs(height - lastReportedHeight) >= 1 {
+      lastReportedHeight = height
+      onContentSizeChange?(["height": height])
+    }
+  }
+
   // MARK: - NSTextViewDelegate
 
   func textDidChange(_ notification: Notification) {
     RichEditorNSView.active = self
     onChange?(["model": serializeModel()])
+    emitContentHeight()
   }
 
   func textDidBeginEditing(_ notification: Notification) {
@@ -208,5 +248,107 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
       return nil
     }
     return rep.representation(using: .png, properties: [:])
+  }
+}
+
+// MARK: - SymbolView (SF Symbols)
+
+// Renders an SF Symbol, tinted to follow the app theme/accent. Registered as the
+// `SymbolView` RN component. Lives here (an already-compiled file) so no new file
+// needs to be added to the Xcode target.
+@objc(SymbolViewManager)
+class SymbolViewManager: RCTViewManager {
+  override func view() -> NSView! { return SymbolNSView() }
+  override static func requiresMainQueueSetup() -> Bool { return true }
+}
+
+class SymbolNSView: NSView {
+  private let imageView = NSImageView()
+  private var symbolName = ""
+  private var pointSize: CGFloat = 15
+  private var weightName = "regular"
+  private var tintHex = ""
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    setup()
+  }
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    setup()
+  }
+  private func setup() {
+    imageView.imageScaling = .scaleProportionallyUpOrDown
+    imageView.frame = bounds
+    imageView.autoresizingMask = [.width, .height]
+    addSubview(imageView)
+  }
+
+  override func setFrameSize(_ newSize: NSSize) {
+    super.setFrameSize(newSize)
+    imageView.frame = bounds
+  }
+
+  @objc func setName(_ value: NSString) { symbolName = value as String; update() }
+  @objc func setPointSize(_ value: NSNumber) { pointSize = CGFloat(truncating: value); update() }
+  @objc func setWeight(_ value: NSString) { weightName = value as String; update() }
+  @objc func setTintColor(_ value: NSString) { tintHex = value as String; update() }
+
+  private func update() {
+    guard !symbolName.isEmpty else { imageView.image = nil; return }
+    let img = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+    let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: symbolWeight())
+    imageView.image = img?.withSymbolConfiguration(config)
+    if let color = SymbolNSView.color(fromHex: tintHex) {
+      imageView.contentTintColor = color
+    }
+  }
+
+  private func symbolWeight() -> NSFont.Weight {
+    switch weightName {
+    case "semibold": return .semibold
+    case "bold": return .bold
+    case "medium": return .medium
+    case "light": return .light
+    default: return .regular
+    }
+  }
+
+  static func color(fromHex hex: String) -> NSColor? {
+    var s = hex.trimmingCharacters(in: .whitespaces)
+    if s.hasPrefix("#") { s.removeFirst() }
+    guard s.count == 6, let n = UInt32(s, radix: 16) else { return nil }
+    return NSColor(
+      red: CGFloat((n >> 16) & 0xff) / 255.0,
+      green: CGFloat((n >> 8) & 0xff) / 255.0,
+      blue: CGFloat(n & 0xff) / 255.0,
+      alpha: 1.0)
+  }
+}
+
+// MARK: - MenuEvents
+
+// Forwards native menu commands (⌘N/⌘R/⌘⇧F from the app menu, see AppDelegate)
+// to JS. The AppDelegate posts an "RMMenuCommand" notification with the command
+// string; this emitter relays it as a `menuCommand` event the inbox subscribes to.
+@objc(MenuEvents)
+class MenuEvents: RCTEventEmitter {
+  private var listening = false
+  override static func requiresMainQueueSetup() -> Bool { return false }
+  override func supportedEvents() -> [String]! { return ["menuCommand"] }
+
+  override func startObserving() {
+    listening = true
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(onCommand(_:)),
+      name: Notification.Name("RMMenuCommand"), object: nil)
+  }
+  override func stopObserving() {
+    listening = false
+    NotificationCenter.default.removeObserver(self)
+  }
+  @objc private func onCommand(_ note: Notification) {
+    guard listening, let cmd = note.object as? String else { return }
+    sendEvent(withName: "menuCommand", body: ["command": cmd])
   }
 }
