@@ -515,6 +515,50 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   // Send/Reply buttons. ⌘↵-to-send still works (handled natively inside the
   // editor). A proper re-do routes these through the native app menu instead.
 
+  // Settings / Compose are rendered as full-window screens (early return) rather
+  // than overlays on top of the inbox. On react-native-macos, native views (the
+  // message-list FlatList, the WKWebView) paint ABOVE sibling RN views, so an
+  // absolute overlay gets occluded by them — which made Settings (and its Sign
+  // out) appear not to open. Unmounting the panes while a screen is open fixes it.
+  if (settingsOpen) {
+    return (
+      <View style={{flex: 1, backgroundColor: theme.bg}}>
+        <SettingsScreen
+          defaultFrom={fromIdentity}
+          onChangeFrom={onChangeFrom}
+          themeOverride={themeChoice}
+          onChangeTheme={onChangeTheme}
+          onSignOut={onSignOutPressed}
+          onClose={() => setSettingsOpen(false)}
+        />
+      </View>
+    );
+  }
+  if (composeMode) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: theme.bg,
+          alignItems: 'center',
+          paddingTop: SP(8),
+          paddingBottom: SP(6),
+        }}>
+        <ComposeSheet
+          mode={composeMode}
+          defaultFrom={fromIdentity}
+          forward={forwardData}
+          onChangeFrom={onChangeFrom}
+          onSend={onSendMail}
+          onClose={() => {
+            setComposeMode(null);
+            setForwardData(null);
+          }}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={{flex: 1, backgroundColor: theme.bg}}>
       {sentToast ? (
@@ -727,54 +771,6 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
           )}
         </View>
       </View>
-      {composeMode ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.35)',
-            alignItems: 'center',
-            paddingTop: 52,
-            paddingBottom: 24,
-          }}
-        >
-          <ComposeSheet
-            mode={composeMode}
-            defaultFrom={fromIdentity}
-            forward={forwardData}
-            onChangeFrom={onChangeFrom}
-            onSend={onSendMail}
-            onClose={() => {
-              setComposeMode(null);
-              setForwardData(null);
-            }}
-          />
-        </View>
-      ) : null}
-      {settingsOpen ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: theme.bg,
-          }}
-        >
-          <SettingsScreen
-            defaultFrom={fromIdentity}
-            onChangeFrom={onChangeFrom}
-            themeOverride={themeChoice}
-            onChangeTheme={onChangeTheme}
-            onSignOut={onSignOutPressed}
-            onClose={() => setSettingsOpen(false)}
-          />
-        </View>
-      ) : null}
     </View>
   );
 }
