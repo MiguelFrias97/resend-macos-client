@@ -73,6 +73,20 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const searchTimerRef = useRef(null);
   const searchInputRef = useRef(null);
   const menuHandlerRef = useRef(() => {});
+  const syncNowRef = useRef(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const onRefresh = async () => {
+    if (!syncNowRef.current || syncing) return;
+    setSyncing(true);
+    try {
+      await syncNowRef.current();
+    } catch (e) {
+      // errors surface via the sync-error banner; nothing extra here
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Load the message list for the current filter/search, reading from refs so
   // the sync tick and effects all use the latest values. A sequence guard drops
@@ -160,6 +174,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
         },
       });
       stop = () => stopSync();
+      syncNowRef.current = stopSync.syncNow;
     })();
     return () => {
       cancelled = true;
@@ -552,15 +567,33 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   // out) appear not to open. Unmounting the panes while a screen is open fixes it.
   if (settingsOpen) {
     return (
-      <ScreenTransition style={{backgroundColor: theme.bg}}>
-        <SettingsScreen
-          defaultFrom={fromIdentity}
-          onChangeFrom={onChangeFrom}
-          themeOverride={themeChoice}
-          onChangeTheme={onChangeTheme}
-          onSignOut={onSignOutPressed}
-          onClose={() => setSettingsOpen(false)}
-        />
+      <ScreenTransition
+        style={{
+          backgroundColor: theme.bg,
+          alignItems: 'center',
+          paddingTop: SP(10),
+        }}>
+        <View
+          style={{
+            width: 480,
+            maxWidth: '92%',
+            maxHeight: '90%',
+            borderRadius: RADIUS.lg,
+            backgroundColor: theme.bg,
+            borderWidth: 1,
+            borderColor: theme.border,
+            overflow: 'hidden',
+            ...ELEV.sheet,
+          }}>
+          <SettingsScreen
+            defaultFrom={fromIdentity}
+            onChangeFrom={onChangeFrom}
+            themeOverride={themeChoice}
+            onChangeTheme={onChangeTheme}
+            onSignOut={onSignOutPressed}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </View>
       </ScreenTransition>
     );
   }
@@ -648,20 +681,38 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
               <Symbol name="square.and.pencil" size={15} color={theme.accent} />
               <Text style={{...TYPE.button, color: theme.text}}>Compose</Text>
             </Pressable>
-            <Pressable
-              accessibilityLabel="Settings"
-              onPress={() => setSettingsOpen(true)}
-              style={({hovered, pressed}) => ({
-                width: 30,
-                height: 28,
-                borderRadius: RADIUS.sm,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: hovered || pressed ? theme.hover : 'transparent',
-              })}
-            >
-              <Symbol name="gearshape" size={16} color={theme.textMuted} />
-            </Pressable>
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: SP(0.5)}}>
+              <Pressable
+                accessibilityLabel="Refresh"
+                onPress={onRefresh}
+                disabled={syncing}
+                style={({hovered, pressed}) => ({
+                  width: 30,
+                  height: 28,
+                  borderRadius: RADIUS.sm,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: syncing ? 0.5 : 1,
+                  backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+                })}
+              >
+                <Symbol name="arrow.clockwise" size={15} color={theme.textMuted} />
+              </Pressable>
+              <Pressable
+                accessibilityLabel="Settings"
+                onPress={() => setSettingsOpen(true)}
+                style={({hovered, pressed}) => ({
+                  width: 30,
+                  height: 28,
+                  borderRadius: RADIUS.sm,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+                })}
+              >
+                <Symbol name="gearshape" size={16} color={theme.textMuted} />
+              </Pressable>
+            </View>
           </View>
           <SearchBar value={query} onChange={onQuery} inputRef={searchInputRef} />
           {error ? (

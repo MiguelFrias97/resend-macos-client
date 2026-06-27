@@ -22,7 +22,7 @@ export default function SettingsScreen({
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
 
   return (
-    <View style={{flex: 1, backgroundColor: theme.bg, padding: SP(4)}}>
+    <View style={{backgroundColor: theme.bg, padding: SP(4)}}>
       <View
         style={{
           flexDirection: 'row',
