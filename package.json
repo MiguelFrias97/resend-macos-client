@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "macos": "react-native run-macos",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "setup-signing": "bash scripts/setup-local-signing.sh"
   },
   "dependencies": {
     "@op-engineering/op-sqlite": "^16.2.1",
