@@ -4,6 +4,7 @@
 @interface RCT_EXTERN_MODULE(RichEditorViewManager, RCTViewManager)
 RCT_EXPORT_VIEW_PROPERTY(onChange, RCTBubblingEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onSubmit, RCTBubblingEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onContentSizeChange, RCTBubblingEventBlock)
 @end
 
 @interface RCT_EXTERN_MODULE(SymbolViewManager, RCTViewManager)

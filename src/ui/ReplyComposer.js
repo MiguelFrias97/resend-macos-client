@@ -14,6 +14,12 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
   const [status, setStatus] = useState('idle');
   const [errorText, setErrorText] = useState('');
   const [files, setFiles] = useState([]);
+  // Grow the editor with its content, between a compact min and a scroll-after max.
+  const MIN_TEXT = 56;
+  const MAX_TEXT = 240;
+  const [textHeight, setTextHeight] = useState(MIN_TEXT);
+  const onContentSize = h =>
+    setTextHeight(Math.max(MIN_TEXT, Math.min(MAX_TEXT, Math.ceil(h || 0))));
 
   const handleChange = next => {
     contentRef.current = next;
@@ -76,11 +82,12 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
         backgroundColor: theme.bg,
         padding: SP(3),
       }}>
-      {/* Fixed height (not minHeight): the native NSView editor must not overflow
-          its box and cover the footer below it, or the Send button becomes
-          unclickable (native views capture mouse events over their frame). */}
-      <View style={{height: 180}}>
-        <Composer onChange={handleChange} onSubmit={send} />
+      {/* Explicit height (auto-grows with content via onContentSize): the native
+          NSView editor must occupy a bounded box, or it overflows and covers the
+          footer (native views capture mouse over their frame), making Send
+          unclickable. Height = toolbar (32) + text + padding (12). */}
+      <View style={{height: 32 + textHeight + 12}}>
+        <Composer onChange={handleChange} onSubmit={send} onContentSize={onContentSize} />
       </View>
       <View style={{marginTop: SP(2.5)}}>
         <OutgoingAttachments files={files} onRemove={removeFile} />

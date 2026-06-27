@@ -47,6 +47,8 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
 
   @objc var onChange: RCTBubblingEventBlock?
   @objc var onSubmit: RCTBubblingEventBlock?
+  @objc var onContentSizeChange: RCTBubblingEventBlock?
+  private var lastReportedHeight: CGFloat = -1
 
   override init(frame frameRect: NSRect) {
     scrollView = NSScrollView(frame: frameRect)
@@ -84,6 +86,10 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
     scrollView.autoresizingMask = [.width, .height]
     addSubview(scrollView)
     RichEditorNSView.active = self
+
+    // Report the initial (single-line) height once layout settles, so the JS
+    // container starts compact instead of at a fixed tall box.
+    DispatchQueue.main.async { [weak self] in self?.emitContentHeight() }
   }
 
   override func becomeFirstResponder() -> Bool {
@@ -91,11 +97,25 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
     return super.becomeFirstResponder()
   }
 
+  // The laid-out height of the text, so the JS side can grow the editor with its
+  // content (clamped between a min and a max on the JS side).
+  private func emitContentHeight() {
+    guard let lm = textView.layoutManager, let tc = textView.textContainer else { return }
+    lm.ensureLayout(for: tc)
+    let used = lm.usedRect(for: tc)
+    let height = ceil(used.height + textView.textContainerInset.height * 2)
+    if abs(height - lastReportedHeight) >= 1 {
+      lastReportedHeight = height
+      onContentSizeChange?(["height": height])
+    }
+  }
+
   // MARK: - NSTextViewDelegate
 
   func textDidChange(_ notification: Notification) {
     RichEditorNSView.active = self
     onChange?(["model": serializeModel()])
+    emitContentHeight()
   }
 
   func textDidBeginEditing(_ notification: Notification) {
