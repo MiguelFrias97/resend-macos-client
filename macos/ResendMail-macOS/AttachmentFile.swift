@@ -1,10 +1,59 @@
 import Foundation
 import AppKit
 import React
+import UniformTypeIdentifiers
 
 @objc(AttachmentFile)
 class AttachmentFile: NSObject, URLSessionTaskDelegate {
   @objc static func requiresMainQueueSetup() -> Bool { false }
+
+  // Per-file cap for outgoing attachments (Resend's total limit is ~40MB; keep
+  // each file well under so a couple of files don't blow the budget).
+  private static let maxAttachmentBytes = 20 * 1024 * 1024
+
+  // Present a native open panel and return the chosen files as Resend attachment
+  // parts: { filename, content (base64), contentType, size }. Files over the cap
+  // are returned with `tooLarge: true` (no content) so the UI can flag them.
+  @objc(pickAttachments:rejecter:)
+  func pickAttachments(_ resolve: @escaping RCTPromiseResolveBlock,
+                       rejecter reject: @escaping RCTPromiseRejectBlock) {
+    DispatchQueue.main.async {
+      let panel = NSOpenPanel()
+      panel.canChooseFiles = true
+      panel.canChooseDirectories = false
+      panel.allowsMultipleSelection = true
+      panel.message = "Choose files to attach"
+      guard panel.runModal() == .OK else {
+        resolve([])
+        return
+      }
+      var out: [[String: Any]] = []
+      for url in panel.urls {
+        let name = url.lastPathComponent
+        let mime = AttachmentFile.mimeType(for: url)
+        guard let data = try? Data(contentsOf: url) else { continue }
+        if data.count > AttachmentFile.maxAttachmentBytes {
+          out.append(["filename": name, "contentType": mime, "size": data.count, "tooLarge": true])
+          continue
+        }
+        out.append([
+          "filename": name,
+          "content": data.base64EncodedString(),
+          "contentType": mime,
+          "size": data.count,
+        ])
+      }
+      resolve(out)
+    }
+  }
+
+  private static func mimeType(for url: URL) -> String {
+    if let type = UTType(filenameExtension: url.pathExtension),
+       let mime = type.preferredMIMEType {
+      return mime
+    }
+    return "application/octet-stream"
+  }
 
   // A session that refuses to follow a redirect to anything but https, so an
   // https download URL can't 302 us to http://localhost or an internal host

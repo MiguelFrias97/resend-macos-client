@@ -22,6 +22,7 @@ import {sendReply, processOutbox} from '../core/outbox';
 import {clearApiKey, clearDbKey} from '../native/Keychain';
 import Symbol from '../native/Symbol';
 import ScreenTransition from './ScreenTransition';
+import {onMenuCommand} from '../native/MenuEvents';
 import {replyPayloadError} from '../reply/assembleReply';
 import {isEmail} from '../compose/assembleCompose';
 import {
@@ -71,6 +72,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const listSeqRef = useRef(0);
   const searchTimerRef = useRef(null);
   const searchInputRef = useRef(null);
+  const menuHandlerRef = useRef(() => {});
 
   // Load the message list for the current filter/search, reading from refs so
   // the sync tick and effects all use the latest values. A sequence guard drops
@@ -165,6 +167,11 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, [apiKey, makeStore, makeSource, bootSeq]);
+
+  // Subscribe once to native app-menu commands; the listener reads the latest
+  // handler from the ref (assigned every render), so it never goes stale and the
+  // root view never needs focus.
+  useEffect(() => onMenuCommand(c => menuHandlerRef.current(c)), []);
 
   const retryInit = () => {
     setInitError(null);
@@ -523,11 +530,20 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
     );
   }
 
-  // NOTE: shell-level keyboard shortcuts (⌘N/⌘R/⌘F/Esc/arrows) were removed —
-  // making the root View `focusable` to receive onKeyDown caused it to swallow
-  // the first mouse click (AppKit first-responder behavior), which broke the
-  // Send/Reply buttons. ⌘↵-to-send still works (handled natively inside the
-  // editor). A proper re-do routes these through the native app menu instead.
+  // Keyboard shortcuts come from the native app menu (AppDelegate's Message menu:
+  // ⌘N / ⌘R / ⌘⇧F), relayed via MenuEvents. We keep the handler in a ref updated
+  // every render so the once-only subscription always sees current state — and so
+  // the root view never has to be focusable (which swallowed mouse clicks before).
+  menuHandlerRef.current = cmd => {
+    if (cmd === 'compose') {
+      setForwardData(null);
+      setComposeMode('compose');
+    } else if (cmd === 'reply') {
+      if (selected && !replying && !composeMode && !settingsOpen) startReply();
+    } else if (cmd === 'forward') {
+      if (selected && !composeMode && !settingsOpen) startForward();
+    }
+  };
 
   // Settings / Compose are rendered as full-window screens (early return) rather
   // than overlays on top of the inbox. On react-native-macos, native views (the

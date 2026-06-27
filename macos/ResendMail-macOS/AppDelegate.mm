@@ -1,5 +1,6 @@
 #import "AppDelegate.h"
 
+#import <AppKit/AppKit.h>
 #import <React/RCTBundleURLProvider.h>
 #import <ReactAppDependencyProvider/RCTAppDependencyProvider.h>
 
@@ -20,6 +21,47 @@
   // below). Without this, the closed window is released and clicking the Dock
   // icon does nothing.
   self.window.releasedWhenClosed = NO;
+
+  [self installMessageMenu];
+}
+
+// Add a "Message" menu with key equivalents. Each item posts an RMMenuCommand
+// notification; the MenuEvents emitter relays it to JS, which runs the action.
+// This is the correct macOS way to do app-wide shortcuts (instead of a focusable
+// RN view, which swallowed mouse clicks).
+- (void)installMessageMenu
+{
+  NSMenu *mainMenu = [NSApp mainMenu];
+  if (mainMenu == nil) {
+    return;
+  }
+  NSMenu *msgMenu = [[NSMenu alloc] initWithTitle:@"Message"];
+
+  [[msgMenu addItemWithTitle:@"New Message"
+                      action:@selector(rmCompose:)
+               keyEquivalent:@"n"] setTarget:self];
+  [[msgMenu addItemWithTitle:@"Reply"
+                      action:@selector(rmReply:)
+               keyEquivalent:@"r"] setTarget:self];
+  NSMenuItem *fwd = [msgMenu addItemWithTitle:@"Forward"
+                                       action:@selector(rmForward:)
+                                keyEquivalent:@"f"];
+  fwd.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
+  [fwd setTarget:self];
+
+  NSMenuItem *msgItem = [[NSMenuItem alloc] init];
+  msgItem.submenu = msgMenu;
+  // Insert before the trailing Window/Help menus when present.
+  NSInteger idx = mainMenu.numberOfItems > 1 ? mainMenu.numberOfItems - 1 : mainMenu.numberOfItems;
+  [mainMenu insertItem:msgItem atIndex:idx];
+}
+
+- (void)rmCompose:(id)sender { [self rmPost:@"compose"]; }
+- (void)rmReply:(id)sender { [self rmPost:@"reply"]; }
+- (void)rmForward:(id)sender { [self rmPost:@"forward"]; }
+- (void)rmPost:(NSString *)command
+{
+  [[NSNotificationCenter defaultCenter] postNotificationName:@"RMMenuCommand" object:command];
 }
 
 // macOS keeps the app running after its last window closes. When the user then

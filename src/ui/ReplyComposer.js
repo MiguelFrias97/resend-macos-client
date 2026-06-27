@@ -2,7 +2,9 @@ import React, {useRef, useState} from 'react';
 import {View} from 'react-native';
 import Composer from './Composer';
 import ComposerFooter from './ComposerFooter';
+import OutgoingAttachments from './OutgoingAttachments';
 import {assembleReplyPayload} from '../reply/assembleReply';
+import {pickAttachments} from '../native/AttachmentFile';
 import {useTheme} from './useTheme';
 import {SP} from './designTokens';
 
@@ -11,10 +13,32 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
   const contentRef = useRef({html: '', inlineImages: []});
   const [status, setStatus] = useState('idle');
   const [errorText, setErrorText] = useState('');
+  const [files, setFiles] = useState([]);
 
   const handleChange = next => {
     contentRef.current = next;
   };
+
+  const handleAttach = async () => {
+    try {
+      const picked = await pickAttachments();
+      if (picked && picked.length) {
+        setFiles(prev => [
+          ...prev,
+          ...picked.map(f => ({
+            filename: f.filename,
+            content: f.content,
+            content_type: f.contentType,
+            size: f.size,
+            tooLarge: f.tooLarge,
+          })),
+        ]);
+      }
+    } catch (e) {
+      // cancelled / failed
+    }
+  };
+  const removeFile = i => setFiles(prev => prev.filter((_, idx) => idx !== i));
 
   const send = async () => {
     setStatus('sending');
@@ -26,6 +50,9 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
       originalHtml,
       from,
       inlineImages: content.inlineImages,
+      attachments: files
+        .filter(f => !f.tooLarge && f.content)
+        .map(f => ({filename: f.filename, content: f.content, content_type: f.content_type})),
     });
     try {
       const res = await onSend(payload);
@@ -56,7 +83,14 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
         <Composer onChange={handleChange} onSubmit={send} />
       </View>
       <View style={{marginTop: SP(2.5)}}>
-        <ComposerFooter status={status} errorText={errorText} onSend={send} theme={theme} />
+        <OutgoingAttachments files={files} onRemove={removeFile} />
+        <ComposerFooter
+          status={status}
+          errorText={errorText}
+          onSend={send}
+          onAttach={handleAttach}
+          theme={theme}
+        />
       </View>
     </View>
   );

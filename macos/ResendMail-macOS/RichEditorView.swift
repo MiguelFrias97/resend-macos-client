@@ -305,3 +305,30 @@ class SymbolNSView: NSView {
       alpha: 1.0)
   }
 }
+
+// MARK: - MenuEvents
+
+// Forwards native menu commands (⌘N/⌘R/⌘⇧F from the app menu, see AppDelegate)
+// to JS. The AppDelegate posts an "RMMenuCommand" notification with the command
+// string; this emitter relays it as a `menuCommand` event the inbox subscribes to.
+@objc(MenuEvents)
+class MenuEvents: RCTEventEmitter {
+  private var listening = false
+  override static func requiresMainQueueSetup() -> Bool { return false }
+  override func supportedEvents() -> [String]! { return ["menuCommand"] }
+
+  override func startObserving() {
+    listening = true
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(onCommand(_:)),
+      name: Notification.Name("RMMenuCommand"), object: nil)
+  }
+  override func stopObserving() {
+    listening = false
+    NotificationCenter.default.removeObserver(self)
+  }
+  @objc private func onCommand(_ note: Notification) {
+    guard listening, let cmd = note.object as? String else { return }
+    sendEvent(withName: "menuCommand", body: ["command": cmd])
+  }
+}

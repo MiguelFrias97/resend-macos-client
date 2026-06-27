@@ -18,4 +18,6 @@ RCT_EXTERN_METHOD(saveAs:(NSString *)srcPath suggestedName:(NSString *)suggested
                   dangerous:(BOOL)dangerous
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
+RCT_EXTERN_METHOD(pickAttachments:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 @end
