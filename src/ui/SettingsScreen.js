@@ -19,6 +19,7 @@ export default function SettingsScreen({
 }) {
   const theme = useTheme();
   const [from, setFrom] = useState(defaultFrom);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
 
   return (
     <View style={{flex: 1, backgroundColor: theme.bg, padding: SP(4)}}>
@@ -112,19 +113,54 @@ export default function SettingsScreen({
         </View>
       </View>
 
-      <Pressable
-        onPress={onSignOut}
-        style={{
-          alignSelf: 'flex-start',
-          justifyContent: 'center',
-          height: 30,
-          paddingHorizontal: SP(3),
-          borderWidth: 1,
-          borderColor: theme.danger,
-          borderRadius: RADIUS.sm,
-        }}>
-        <Text style={{...TYPE.button, color: theme.danger}}>Sign out</Text>
-      </Pressable>
+      {confirmingSignOut ? (
+        <View style={{gap: SP(2)}}>
+          <Text style={{...TYPE.body, color: theme.text}}>Sign out?</Text>
+          <Text style={{...TYPE.meta, color: theme.textMuted, maxWidth: 360}}>
+            Mail cached on this Mac will be removed, and you'll need your Resend
+            API key to sign back in.
+          </Text>
+          <View style={{flexDirection: 'row', gap: SP(2)}}>
+            <Pressable
+              onPress={onSignOut}
+              style={{
+                justifyContent: 'center',
+                height: 30,
+                paddingHorizontal: SP(4),
+                borderRadius: RADIUS.sm,
+                backgroundColor: theme.danger,
+              }}>
+              <Text style={{...TYPE.button, color: '#fff'}}>Sign out</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setConfirmingSignOut(false)}
+              style={{
+                justifyContent: 'center',
+                height: 30,
+                paddingHorizontal: SP(3),
+                borderWidth: 1,
+                borderColor: theme.border,
+                borderRadius: RADIUS.sm,
+              }}>
+              <Text style={{...TYPE.button, color: theme.text}}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => setConfirmingSignOut(true)}
+          style={{
+            alignSelf: 'flex-start',
+            justifyContent: 'center',
+            height: 30,
+            paddingHorizontal: SP(3),
+            borderWidth: 1,
+            borderColor: theme.danger,
+            borderRadius: RADIUS.sm,
+          }}>
+          <Text style={{...TYPE.button, color: theme.danger}}>Sign out</Text>
+        </Pressable>
+      )}
     </View>
   );
 }

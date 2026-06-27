@@ -344,3 +344,14 @@ test('setFlag rejects a column outside the allowlist (no SQL injection sink)', a
   expect(typeof store.setSeen).toBe('function');
   expect(typeof store.setArchived).toBe('function');
 });
+
+test('deleteDatabase wipes the underlying db (sign-out cache wipe)', async () => {
+  let deleted = false;
+  const db = {
+    async execute() { return {rows: []}; },
+    delete() { deleted = true; },
+  };
+  const store = await createLocalStore(db);
+  store.deleteDatabase();
+  expect(deleted).toBe(true);
+});

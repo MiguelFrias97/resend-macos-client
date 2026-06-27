@@ -344,5 +344,10 @@ export async function createLocalStore(db) {
     insertSentMessage,
     setSetting,
     getSetting,
+    // Close and delete the underlying database file (used on sign-out to wipe
+    // the local cache). No-op if the driver doesn't support it.
+    deleteDatabase: () => {
+      if (db && typeof db.delete === 'function') db.delete();
+    },
   };
 }

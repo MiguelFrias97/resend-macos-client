@@ -19,7 +19,7 @@ import {createMailSource} from '../net/mailSource';
 import {createSender} from '../net/sender';
 import {startSyncLoop} from '../core/sync';
 import {sendReply, processOutbox} from '../core/outbox';
-import {clearApiKey} from '../native/Keychain';
+import {clearApiKey, clearDbKey} from '../native/Keychain';
 import {replyPayloadError} from '../reply/assembleReply';
 import {isEmail} from '../compose/assembleCompose';
 import {
@@ -329,10 +329,22 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   };
 
   const onSignOutPressed = async () => {
+    // Wipe the local mailbox cache so signing in with a different key can't
+    // surface the previous account's mail (the cache is keyed by message id,
+    // not account). The cache is disposable — it re-syncs from Resend.
+    try {
+      const services = servicesRef.current;
+      if (services && services.store && services.store.deleteDatabase) {
+        services.store.deleteDatabase();
+      }
+    } catch (e) {
+      // best-effort; continue clearing credentials regardless
+    }
     try {
       await clearApiKey();
+      await clearDbKey();
     } catch (e) {
-      // ignore — we still sign out of the session below.
+      // ignore — we still drop the session below.
     }
     if (onSignOut) onSignOut();
   };
