@@ -1,9 +1,10 @@
-# Resend Desktop Mail
+# Resend Mail
 
 A native **macOS** desktop email client for reading and replying to mail received via
 [Resend Inbound](https://resend.com/docs/dashboard/receiving/introduction). Built with
 `react-native-macos` using true AppKit/WebKit components, in an Apple/Jobs visual idiom.
-No backend — the app talks directly to the Resend API and caches everything locally.
+No backend — the app talks directly to the Resend API and caches everything locally in an
+encrypted (SQLCipher) database.
 
 > Receive → triage (read/unread, star, archive, search, folders) → read full conversations →
 > reply, compose, and forward — with rich formatting, inline images, attachments, threading,
@@ -11,20 +12,25 @@ No backend — the app talks directly to the Resend API and caches everything lo
 
 ## What it does
 
-- **Inbox & sync** — polls `GET /emails/receiving` (~25s + manual refresh), caches messages,
-  attachments, and bodies in SQLite (works offline; survives Resend's 30-day retention).
+- **Inbox & sync** — polls `GET /emails/receiving` (~25s + a manual Refresh button), caching
+  messages, attachments, and bodies in a **SQLCipher-encrypted** SQLite database (works offline;
+  survives Resend's 30-day retention; the key lives in the macOS Keychain).
 - **Reading** — full HTML rendered in a native `WKWebView` with JavaScript disabled and remote
   content blocked behind a "Load images" toggle (CSP-enforced), inline `cid:` images resolved
   from cache, attachments saved with macOS quarantine + filename hygiene + dangerous-type warnings.
 - **Rich editor** — a native `NSTextView` editor (bold/italic/underline, lists, links, drag-drop
-  inline images) producing email-safe HTML.
+  inline images) producing email-safe HTML; grows with its content.
 - **Reply / compose / forward** — threaded replies (`In-Reply-To`/`References`), a focused compose
-  sheet, forward with the original's files re-attached, all sent through a local outbox that retries
-  failures (idempotent, so a retry never double-sends).
-- **Triage** — sidebar (Inbox/Unread/Starred/Archive), local search (sender/subject/cached body),
-  and a grouped conversation view including your sent replies.
-- **Polish** — auto light/dark following macOS, the system accent color, native new-mail
-  notifications, and friendly empty/error states.
+  screen, **attach files** (images/documents) or forward with the original's files re-attached, all
+  sent through a local outbox that retries failures (idempotent, so a retry never double-sends).
+- **Triage** — sidebar (Inbox/Unread/Starred/Archive) with unread badges, local search
+  (sender/subject/cached body), and a grouped conversation view including your sent replies.
+- **Settings & account** — pick your send identity with a **verified-domain picker** (warns before
+  you send from a domain Resend will reject), override light/dark, and **sign out** (wipes the
+  encrypted cache so a different key can't see the previous account's mail).
+- **Keyboard** — a native menu with **⌘N** compose, **⌘R** reply, **⌘⇧F** forward, and **⌘↵** to send.
+- **Polish** — real SF Symbols throughout, auto light/dark following macOS, the system accent color,
+  native new-mail notifications, and friendly empty/error states.
 
 ## Architecture
 
@@ -41,7 +47,8 @@ App core (plain JS) ──────────────── sync loop �
   └── Sender       (Resend POST /emails, idempotency key)
   │
 Native modules (Swift) ──────────── Keychain · MessageBodyView (WKWebView) · RichEditorView
-  (NSTextView) · AttachmentFile (quarantine/save/readBase64) · SystemAccent · Notifications
+  (NSTextView) · AttachmentFile (pick/quarantine/save/readBase64) · SymbolView (SF Symbols) ·
+  MenuEvents (menu-bar shortcuts) · SystemAccent · Notifications
 ```
 
 The full design spec and per-milestone plans live in `docs/superpowers/specs/` and
@@ -97,6 +104,20 @@ build is then a slower full rebuild; the installed app is untouched).
 
 On first launch, paste your Resend API key (stored in the macOS Keychain). The app verifies it,
 then starts syncing your received mail.
+
+### Stop the repeated Keychain password prompts (optional)
+
+Because the local build is **ad-hoc signed**, its signature changes on every build, so macOS
+can't remember "Always Allow" and re-prompts for your login password each launch. To fix it
+without weakening security, give the app a stable self-signed identity **once**:
+
+```bash
+npm run setup-signing          # creates a local code-signing cert (one password prompt)
+npm run install:macos          # re-signs the app with it
+```
+
+Then click **"Always Allow"** on the next Keychain prompts and they won't return. Your key stays
+in the Keychain (device-only); only the app's signature becomes stable.
 
 ## Develop
 
