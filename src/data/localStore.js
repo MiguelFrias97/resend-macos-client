@@ -132,13 +132,19 @@ export async function createLocalStore(db) {
     return res.rows.map(mapRow);
   }
 
-  // Per-folder counts for the sidebar. Returns total per filter plus the unread
-  // total, which is what the sidebar badges show.
+  // Per-folder UNREAD counts for the sidebar badges (Apple-Mail style: a badge
+  // means "this many unread", not the folder total). Sent has no unread concept,
+  // so it returns 0 (no badge). FILTERS values are hardcoded constants, so the
+  // interpolation here is not an injection surface.
   async function counts() {
     const out = {};
     for (const key of Object.keys(FILTERS)) {
+      if (key === 'sent') {
+        out[key] = 0;
+        continue;
+      }
       const res = await db.execute(
-        `SELECT COUNT(*) AS n FROM messages WHERE ${FILTERS[key]}`,
+        `SELECT COUNT(*) AS n FROM messages WHERE ${FILTERS[key]} AND seen=0`,
       );
       out[key] = (res.rows[0] && res.rows[0].n) || 0;
     }

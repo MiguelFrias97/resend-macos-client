@@ -35,6 +35,10 @@ export default function ComposeSheet({
       : '',
   );
   const contentRef = useRef({html: '', inlineImages: []});
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
   const [status, setStatus] = useState('idle');
   const [errorText, setErrorText] = useState('');
   const [files, setFiles] = useState([]); // staged file attachments
@@ -108,6 +112,9 @@ export default function ComposeSheet({
           });
     try {
       const res = await onSend(payload);
+      // On success the parent may unmount this sheet (auto-dismiss), so don't
+      // touch state once unmounted.
+      if (!mountedRef.current) return;
       if (res && res.ok === false) {
         setErrorText((res.error && res.error.message) || String(res.error || ''));
         setStatus('failed');
@@ -115,6 +122,7 @@ export default function ComposeSheet({
         setStatus('sent');
       }
     } catch (e) {
+      if (!mountedRef.current) return;
       setErrorText(e.message || '');
       setStatus('failed');
     }

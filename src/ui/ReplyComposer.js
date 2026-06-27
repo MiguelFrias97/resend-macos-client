@@ -1,4 +1,4 @@
-import React, {useRef, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {View} from 'react-native';
 import Composer from './Composer';
 import ComposerFooter from './ComposerFooter';
@@ -11,6 +11,10 @@ import {SP} from './designTokens';
 export default function ReplyComposer({original, originalHtml, from, onSend}) {
   const theme = useTheme();
   const contentRef = useRef({html: '', inlineImages: []});
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
   const [status, setStatus] = useState('idle');
   const [errorText, setErrorText] = useState('');
   const [files, setFiles] = useState([]);
@@ -62,6 +66,9 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
     });
     try {
       const res = await onSend(payload);
+      // The reply composer unmounts on success (setReplying(false)); don't set
+      // state once unmounted.
+      if (!mountedRef.current) return;
       if (res && res.ok === false) {
         setErrorText((res.error && res.error.message) || String(res.error || ''));
         setStatus('failed');
@@ -69,6 +76,7 @@ export default function ReplyComposer({original, originalHtml, from, onSend}) {
         setStatus('sent');
       }
     } catch (e) {
+      if (!mountedRef.current) return;
       setErrorText(e.message || '');
       setStatus('failed');
     }

@@ -75,6 +75,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const searchInputRef = useRef(null);
   const menuHandlerRef = useRef(() => {});
   const syncNowRef = useRef(null);
+  const stopSyncRef = useRef(null);
   const [syncing, setSyncing] = useState(false);
 
   const onRefresh = async () => {
@@ -185,6 +186,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       });
       stop = () => stopSync();
       syncNowRef.current = stopSync.syncNow;
+      stopSyncRef.current = stopSync;
     })();
     return () => {
       cancelled = true;
@@ -197,6 +199,15 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   // handler from the ref (assigned every render), so it never goes stale and the
   // root view never needs focus.
   useEffect(() => onMenuCommand(c => menuHandlerRef.current(c)), []);
+
+  // Clear the transient "Message sent" timer on unmount (e.g. sign-out within
+  // 2.5s of a send) so it doesn't fire setState on an unmounted component.
+  useEffect(
+    () => () => {
+      if (sentToastTimer.current) clearTimeout(sentToastTimer.current);
+    },
+    [],
+  );
 
   const retryInit = () => {
     setInitError(null);
@@ -277,10 +288,10 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
         }
       },
       onRemoteContent: (id, has) => {
-        // Only the selected message drives the header's "Load images" affordance.
-        if (selectedRef.current && selectedRef.current.id === id) {
-          setHasRemoteImages(has);
-        }
+        // The "Load images" toggle is global (allowRemote applies to every body),
+        // so surface it if ANY rendered message in the open thread has blocked
+        // remote content — not just the selected one. Reset happens on select.
+        if (has) setHasRemoteImages(true);
       },
       onLoaded: async id => {
         // The thread renders several bodies; only the clicked message drives
@@ -363,6 +374,13 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   };
 
   const onSignOutPressed = async () => {
+    // Stop the sync loop FIRST so a scheduled/in-flight tick can't run a query
+    // against the database we're about to delete.
+    try {
+      if (stopSyncRef.current) stopSyncRef.current();
+    } catch (e) {
+      // ignore
+    }
     // Wipe the local mailbox cache so signing in with a different key can't
     // surface the previous account's mail (the cache is keyed by message id,
     // not account). The cache is disposable — it re-syncs from Resend.
@@ -560,13 +578,16 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   // every render so the once-only subscription always sees current state — and so
   // the root view never has to be focusable (which swallowed mouse clicks before).
   menuHandlerRef.current = cmd => {
+    // Ignore menu shortcuts while a full-window screen is already open, so e.g.
+    // ⌘N while typing in compose/settings doesn't reset or stack a screen.
+    if (composeMode || settingsOpen) return;
     if (cmd === 'compose') {
       setForwardData(null);
       setComposeMode('compose');
     } else if (cmd === 'reply') {
-      if (selected && !replying && !composeMode && !settingsOpen) startReply();
+      if (selected && !replying) startReply();
     } else if (cmd === 'forward') {
-      if (selected && !composeMode && !settingsOpen) startForward();
+      if (selected) startForward();
     }
   };
 
