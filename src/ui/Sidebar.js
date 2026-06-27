@@ -41,8 +41,11 @@ export default function Sidebar({selected, onSelect, counts = {}}) {
               paddingHorizontal: SP(2),
               marginHorizontal: SP(2),
               borderRadius: RADIUS.sm,
+              // Calm selection: a tint (matching the message list), not a full
+              // accent pill. Accent shows only in the icon, so selection reads
+              // the same way across both panes.
               backgroundColor: isSelected
-                ? theme.selectedBg
+                ? theme.selectedFill
                 : hovered
                 ? theme.hover
                 : 'transparent',
@@ -51,14 +54,14 @@ export default function Sidebar({selected, onSelect, counts = {}}) {
               <Symbol
                 name={f.symbol}
                 size={16}
-                color={isSelected ? theme.onAccent : theme.textMuted}
+                color={isSelected ? theme.accent : theme.textMuted}
               />
             </View>
             <Text
               style={{
                 fontSize: 13,
-                fontWeight: isSelected ? '500' : '400',
-                color: isSelected ? theme.onAccent : theme.text,
+                fontWeight: isSelected ? '600' : '400',
+                color: theme.text,
                 flex: 1,
               }}>
               {f.label}
@@ -68,7 +71,7 @@ export default function Sidebar({selected, onSelect, counts = {}}) {
                 style={{
                   ...TYPE.meta,
                   fontVariant: ['tabular-nums'],
-                  color: isSelected ? theme.onAccent : theme.textFaint,
+                  color: isSelected ? theme.accent : theme.textFaint,
                 }}>
                 {count}
               </Text>

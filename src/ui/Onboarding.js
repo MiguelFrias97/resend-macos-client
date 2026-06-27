@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import {View, Text, TextInput, Pressable} from 'react-native';
 import {verifyApiKey} from '../net/verifyApiKey';
 import {setApiKey} from '../native/Keychain';
+import Symbol from '../native/Symbol';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, ELEV, TYPE} from './designTokens';
 
@@ -138,15 +139,19 @@ export default function Onboarding({onComplete, deps = {}}) {
             {busy ? 'Connecting…' : 'Connect'}
           </Text>
         </Pressable>
-        <Text
+        <View
           style={{
-            ...TYPE.meta,
-            color: theme.textFaint,
-            textAlign: 'center',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: SP(1.5),
             marginTop: SP(3),
           }}>
-          🔒 Your key is stored securely in the macOS Keychain.
-        </Text>
+          <Symbol name="lock.fill" size={12} color={theme.textFaint} />
+          <Text style={{...TYPE.meta, color: theme.textFaint}}>
+            Your key is stored securely in the macOS Keychain.
+          </Text>
+        </View>
       </View>
     </View>
   );

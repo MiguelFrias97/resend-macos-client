@@ -21,6 +21,7 @@ import {startSyncLoop} from '../core/sync';
 import {sendReply, processOutbox} from '../core/outbox';
 import {clearApiKey, clearDbKey} from '../native/Keychain';
 import Symbol from '../native/Symbol';
+import ScreenTransition from './ScreenTransition';
 import {replyPayloadError} from '../reply/assembleReply';
 import {isEmail} from '../compose/assembleCompose';
 import {
@@ -535,7 +536,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   // out) appear not to open. Unmounting the panes while a screen is open fixes it.
   if (settingsOpen) {
     return (
-      <View style={{flex: 1, backgroundColor: theme.bg}}>
+      <ScreenTransition style={{backgroundColor: theme.bg}}>
         <SettingsScreen
           defaultFrom={fromIdentity}
           onChangeFrom={onChangeFrom}
@@ -544,14 +545,13 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
           onSignOut={onSignOutPressed}
           onClose={() => setSettingsOpen(false)}
         />
-      </View>
+      </ScreenTransition>
     );
   }
   if (composeMode) {
     return (
-      <View
+      <ScreenTransition
         style={{
-          flex: 1,
           backgroundColor: theme.bg,
           alignItems: 'center',
           paddingTop: SP(8),
@@ -568,7 +568,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
             setForwardData(null);
           }}
         />
-      </View>
+      </ScreenTransition>
     );
   }
 
