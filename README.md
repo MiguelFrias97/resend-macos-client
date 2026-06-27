@@ -126,11 +126,18 @@ shapes — see `docs/API-VERIFICATION.md`.
 - **Threading** uses a subject + participants heuristic. The list endpoint exposes only `message_id`
   (not `in_reply_to`/`references`), so RFC-header threading would require parsing the retrieve
   endpoint's `headers` and a re-threading pass.
-- **Native runtime**: the Swift modules and the send/render paths are compile- and unit-verified but
-  not yet exercised against a live account end-to-end — run `docs/SMOKE-CHECKLIST.md` before relying on it.
-- No Drafts/Sent view, recipient autocomplete, Settings screen, or arbitrary-file attach on compose
-  (all deferred follow-ups).
+- **Sending** requires the domain to be verified for **sending** in Resend (separate from inbound
+  receiving). The From field surfaces your verified domains; an unverified From is rejected by Resend.
+- **Distribution**: the local build is **ad-hoc / self-signed** (`npm run install:macos`). A
+  signed + notarized release path is a deferred follow-up, so non-developers can't yet install a
+  prebuilt download.
+- **No Drafts view** or recipient autocomplete yet.
+
+## Contributing
+
+Issues and PRs welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). For security
+reports, follow [`SECURITY.md`](SECURITY.md) (please don't open a public issue).
 
 ## License
 
-Private project.
+[MIT](LICENSE) © 2026 Miguel Frias
