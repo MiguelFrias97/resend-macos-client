@@ -2,13 +2,14 @@ import React from 'react';
 import {View, Text, Pressable} from 'react-native';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE} from './designTokens';
+import Symbol from '../native/Symbol';
 
 const FILTERS = [
-  {key: 'inbox', label: 'Inbox', glyph: '▤'},
-  {key: 'unread', label: 'Unread', glyph: '●'},
-  {key: 'starred', label: 'Starred', glyph: '★'},
-  {key: 'sent', label: 'Sent', glyph: '↗'},
-  {key: 'archive', label: 'Archive', glyph: '▾'},
+  {key: 'inbox', label: 'Inbox', symbol: 'tray'},
+  {key: 'unread', label: 'Unread', symbol: 'envelope.badge'},
+  {key: 'starred', label: 'Starred', symbol: 'star'},
+  {key: 'sent', label: 'Sent', symbol: 'paperplane'},
+  {key: 'archive', label: 'Archive', symbol: 'archivebox'},
 ];
 
 export default function Sidebar({selected, onSelect, counts = {}}) {
@@ -32,7 +33,7 @@ export default function Sidebar({selected, onSelect, counts = {}}) {
           <Pressable
             key={f.key}
             onPress={() => onSelect(f.key)}
-            style={{
+            style={({hovered}) => ({
               flexDirection: 'row',
               alignItems: 'center',
               gap: SP(2.25),
@@ -40,17 +41,19 @@ export default function Sidebar({selected, onSelect, counts = {}}) {
               paddingHorizontal: SP(2),
               marginHorizontal: SP(2),
               borderRadius: RADIUS.sm,
-              backgroundColor: isSelected ? theme.selectedBg : 'transparent',
-            }}>
-            <Text
-              style={{
-                width: 18,
-                textAlign: 'center',
-                fontSize: 13,
-                color: isSelected ? theme.onAccent : theme.textMuted,
-              }}>
-              {f.glyph}
-            </Text>
+              backgroundColor: isSelected
+                ? theme.selectedBg
+                : hovered
+                ? theme.hover
+                : 'transparent',
+            })}>
+            <View style={{width: 18, alignItems: 'center'}}>
+              <Symbol
+                name={f.symbol}
+                size={16}
+                color={isSelected ? theme.onAccent : theme.textMuted}
+              />
+            </View>
             <Text
               style={{
                 fontSize: 13,

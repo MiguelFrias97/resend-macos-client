@@ -7,10 +7,16 @@ test('renders a chip per attachment and warns on dangerous types', () => {
     {id: 'a1', filename: 'report.pdf', contentType: 'application/pdf', size: 1200},
     {id: 'a2', filename: 'setup.app', contentType: 'application/octet-stream', size: 50},
   ];
-  const {getByText} = render(<AttachmentTray attachments={atts} onSave={() => {}} />);
+  const {getByText, UNSAFE_getAllByType} = render(
+    <AttachmentTray attachments={atts} onSave={() => {}} />,
+  );
   expect(getByText('report.pdf')).toBeTruthy();
   expect(getByText(/setup\.app/)).toBeTruthy();
-  expect(getByText(/⚠|warning/i)).toBeTruthy();
+  // The dangerous .app chip shows the warning symbol (exclamationmark.triangle.fill).
+  const symbols = UNSAFE_getAllByType('SymbolView');
+  expect(
+    symbols.some(s => s.props.name === 'exclamationmark.triangle.fill'),
+  ).toBe(true);
 });
 
 test('renders nothing when there are no attachments', () => {

@@ -2,6 +2,7 @@ import React from 'react';
 import {View, Text} from 'react-native';
 import {useTheme} from './useTheme';
 import {SP, TYPE} from './designTokens';
+import Symbol from '../native/Symbol';
 
 export default function EmptyState({message}) {
   const theme = useTheme();
@@ -24,7 +25,7 @@ export default function EmptyState({message}) {
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-        <Text style={{fontSize: 20, color: theme.textFaint}}>✉</Text>
+        <Symbol name="tray" size={22} color={theme.textFaint} />
       </View>
       <Text
         style={{

@@ -101,9 +101,9 @@ test('the Compose button opens the compose sheet', async () => {
   const {getByText, queryByPlaceholderText, getByPlaceholderText} = render(
     <InboxScreen apiKey="re_x" makeStore={makeStore} makeSource={makeSource} />,
   );
-  await waitFor(() => expect(getByText('+ Compose')).toBeTruthy());
+  await waitFor(() => expect(getByText('Compose')).toBeTruthy());
   expect(queryByPlaceholderText('To')).toBeNull();
-  fireEvent.press(getByText('+ Compose'));
+  fireEvent.press(getByText('Compose'));
   expect(getByPlaceholderText('name@example.com')).toBeTruthy();
   expect(getByPlaceholderText('From').props.value).toBe('me@you.com');
 });

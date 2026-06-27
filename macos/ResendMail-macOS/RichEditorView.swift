@@ -230,3 +230,78 @@ class RichEditorNSView: NSView, NSTextViewDelegate {
     return rep.representation(using: .png, properties: [:])
   }
 }
+
+// MARK: - SymbolView (SF Symbols)
+
+// Renders an SF Symbol, tinted to follow the app theme/accent. Registered as the
+// `SymbolView` RN component. Lives here (an already-compiled file) so no new file
+// needs to be added to the Xcode target.
+@objc(SymbolViewManager)
+class SymbolViewManager: RCTViewManager {
+  override func view() -> NSView! { return SymbolNSView() }
+  override static func requiresMainQueueSetup() -> Bool { return true }
+}
+
+class SymbolNSView: NSView {
+  private let imageView = NSImageView()
+  private var symbolName = ""
+  private var pointSize: CGFloat = 15
+  private var weightName = "regular"
+  private var tintHex = ""
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    setup()
+  }
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    setup()
+  }
+  private func setup() {
+    imageView.imageScaling = .scaleProportionallyUpOrDown
+    imageView.frame = bounds
+    imageView.autoresizingMask = [.width, .height]
+    addSubview(imageView)
+  }
+
+  override func setFrameSize(_ newSize: NSSize) {
+    super.setFrameSize(newSize)
+    imageView.frame = bounds
+  }
+
+  @objc func setName(_ value: NSString) { symbolName = value as String; update() }
+  @objc func setPointSize(_ value: NSNumber) { pointSize = CGFloat(truncating: value); update() }
+  @objc func setWeight(_ value: NSString) { weightName = value as String; update() }
+  @objc func setTintColor(_ value: NSString) { tintHex = value as String; update() }
+
+  private func update() {
+    guard !symbolName.isEmpty else { imageView.image = nil; return }
+    let img = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+    let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: symbolWeight())
+    imageView.image = img?.withSymbolConfiguration(config)
+    if let color = SymbolNSView.color(fromHex: tintHex) {
+      imageView.contentTintColor = color
+    }
+  }
+
+  private func symbolWeight() -> NSFont.Weight {
+    switch weightName {
+    case "semibold": return .semibold
+    case "bold": return .bold
+    case "medium": return .medium
+    case "light": return .light
+    default: return .regular
+    }
+  }
+
+  static func color(fromHex hex: String) -> NSColor? {
+    var s = hex.trimmingCharacters(in: .whitespaces)
+    if s.hasPrefix("#") { s.removeFirst() }
+    guard s.count == 6, let n = UInt32(s, radix: 16) else { return nil }
+    return NSColor(
+      red: CGFloat((n >> 16) & 0xff) / 255.0,
+      green: CGFloat((n >> 8) & 0xff) / 255.0,
+      blue: CGFloat(n & 0xff) / 255.0,
+      alpha: 1.0)
+  }
+}

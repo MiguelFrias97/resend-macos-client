@@ -1,12 +1,13 @@
 import React from 'react';
-import {View, Pressable, Text} from 'react-native';
+import {View, Pressable} from 'react-native';
 import RichEditorView, {commands} from '../native/RichEditorView';
+import Symbol from '../native/Symbol';
 import {docModelToHtml} from '../editor/docModelToHtml';
 import {collectInlineImages} from '../editor/collectInlineImages';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE} from './designTokens';
 
-function ToolbarButton({label, onPress, children, color}) {
+function ToolbarButton({label, onPress, symbol, color}) {
   return (
     <Pressable
       accessibilityLabel={label}
@@ -20,9 +21,7 @@ function ToolbarButton({label, onPress, children, color}) {
         backgroundColor: hovered || pressed ? color.hover : 'transparent',
       })}
     >
-      <Text style={{...TYPE.button, fontWeight: '600', color: color.text}}>
-        {children}
-      </Text>
+      <Symbol name={symbol} size={15} color={color.text} />
     </Pressable>
   );
 }
@@ -60,21 +59,11 @@ export default function Composer({onChange, onSubmit}) {
           borderBottomColor: theme.divider,
         }}
       >
-        <ToolbarButton label="Bold" onPress={commands.bold} color={btnColor}>
-          B
-        </ToolbarButton>
-        <ToolbarButton label="Italic" onPress={commands.italic} color={btnColor}>
-          i
-        </ToolbarButton>
-        <ToolbarButton label="Underline" onPress={commands.underline} color={btnColor}>
-          U
-        </ToolbarButton>
-        <ToolbarButton label="Bulleted list" onPress={commands.bulletList} color={btnColor}>
-          •
-        </ToolbarButton>
-        <ToolbarButton label="Numbered list" onPress={commands.numberList} color={btnColor}>
-          1.
-        </ToolbarButton>
+        <ToolbarButton label="Bold" onPress={commands.bold} symbol="bold" color={btnColor} />
+        <ToolbarButton label="Italic" onPress={commands.italic} symbol="italic" color={btnColor} />
+        <ToolbarButton label="Underline" onPress={commands.underline} symbol="underline" color={btnColor} />
+        <ToolbarButton label="Bulleted list" onPress={commands.bulletList} symbol="list.bullet" color={btnColor} />
+        <ToolbarButton label="Numbered list" onPress={commands.numberList} symbol="list.number" color={btnColor} />
       </View>
       <RichEditorView
         style={{flex: 1, minHeight: 80, ...TYPE.body, color: theme.text}}

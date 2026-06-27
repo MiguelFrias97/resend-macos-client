@@ -130,7 +130,7 @@ export default function ComposeSheet({
           {mode === 'forward' ? 'Forward' : 'New message'}
         </Text>
         <Pressable onPress={onClose}>
-          <Text style={{...TYPE.button, color: theme.accent}}>Close</Text>
+          <Text style={{...TYPE.button, color: theme.accent}}>Cancel</Text>
         </Pressable>
       </View>
       <View

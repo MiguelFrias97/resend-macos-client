@@ -1,5 +1,6 @@
 import React from 'react';
-import {View, Text, TextInput} from 'react-native';
+import {View, TextInput} from 'react-native';
+import Symbol from '../native/Symbol';
 import {useTheme} from './useTheme';
 import {SP, RADIUS} from './designTokens';
 
@@ -16,7 +17,12 @@ export default function SearchBar({value, onChange, inputRef}) {
         borderRadius: RADIUS.sm,
         backgroundColor: theme.fieldFill,
       }}>
-      <Text style={{color: theme.textFaint, fontSize: 13, marginRight: SP(1)}}>⌕</Text>
+      <Symbol
+        name="magnifyingglass"
+        size={14}
+        color={theme.textFaint}
+        style={{marginRight: SP(1)}}
+      />
       <TextInput
         ref={inputRef}
         placeholder="Search"

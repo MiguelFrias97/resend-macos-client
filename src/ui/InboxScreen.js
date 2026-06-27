@@ -20,6 +20,7 @@ import {createSender} from '../net/sender';
 import {startSyncLoop} from '../core/sync';
 import {sendReply, processOutbox} from '../core/outbox';
 import {clearApiKey, clearDbKey} from '../native/Keychain';
+import Symbol from '../native/Symbol';
 import {replyPayloadError} from '../reply/assembleReply';
 import {isEmail} from '../compose/assembleCompose';
 import {
@@ -590,7 +591,8 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
             ...ELEV.popover,
           }}
         >
-          <Text style={{...TYPE.button, color: theme.bg}}>✓ {sentToast}</Text>
+          <Symbol name="checkmark.circle.fill" size={15} color={theme.bg} />
+          <Text style={{...TYPE.button, color: theme.bg}}>{sentToast}</Text>
         </View>
       ) : null}
       <View style={{flex: 1, flexDirection: 'row'}}>
@@ -616,29 +618,33 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
           >
             <Pressable
               onPress={() => setComposeMode('compose')}
-              style={{
+              style={({hovered, pressed}) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: SP(1.5),
                 height: 28,
-                paddingHorizontal: SP(2),
+                paddingHorizontal: SP(2.5),
                 borderRadius: RADIUS.sm,
                 justifyContent: 'center',
-              }}
+                backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+              })}
             >
-              <Text style={{...TYPE.button, color: theme.textMuted}}>
-                + Compose
-              </Text>
+              <Symbol name="square.and.pencil" size={15} color={theme.accent} />
+              <Text style={{...TYPE.button, color: theme.text}}>Compose</Text>
             </Pressable>
             <Pressable
               accessibilityLabel="Settings"
               onPress={() => setSettingsOpen(true)}
-              style={{
+              style={({hovered, pressed}) => ({
                 width: 30,
                 height: 28,
                 borderRadius: RADIUS.sm,
                 alignItems: 'center',
                 justifyContent: 'center',
-              }}
+                backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+              })}
             >
-              <Text style={{...TYPE.button, color: theme.textMuted}}>⚙</Text>
+              <Symbol name="gearshape" size={16} color={theme.textMuted} />
             </Pressable>
           </View>
           <SearchBar value={query} onChange={onQuery} inputRef={searchInputRef} />
@@ -692,52 +698,69 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
                 >
                   {selected.subject}
                 </Text>
-                {hasRemoteImages && !allowRemote ? (
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: SP(2)}}>
+                  {hasRemoteImages && !allowRemote ? (
+                    <Pressable
+                      onPress={() => setAllowRemote(true)}
+                      style={({hovered, pressed}) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: SP(1.5),
+                        height: 28,
+                        paddingHorizontal: SP(3),
+                        borderRadius: RADIUS.sm,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        justifyContent: 'center',
+                        backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+                      })}
+                    >
+                      <Symbol name="photo" size={14} color={theme.text} />
+                      <Text style={{...TYPE.button, color: theme.text}}>
+                        Load images
+                      </Text>
+                    </Pressable>
+                  ) : null}
                   <Pressable
-                    onPress={() => setAllowRemote(true)}
-                    style={{
+                    onPress={startForward}
+                    style={({hovered, pressed}) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: SP(1.5),
                       height: 28,
                       paddingHorizontal: SP(3),
                       borderRadius: RADIUS.sm,
                       borderWidth: 1,
                       borderColor: theme.border,
                       justifyContent: 'center',
-                    }}
+                      backgroundColor: hovered || pressed ? theme.hover : 'transparent',
+                    })}
                   >
-                    <Text style={{...TYPE.button, color: theme.text}}>
-                      Load images
-                    </Text>
+                    <Symbol name="arrowshape.turn.up.right" size={14} color={theme.text} />
+                    <Text style={{...TYPE.button, color: theme.text}}>Forward</Text>
                   </Pressable>
-                ) : null}
-                <Pressable
-                  onPress={startForward}
-                  style={{
-                    height: 28,
-                    paddingHorizontal: SP(3),
-                    borderRadius: RADIUS.sm,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{...TYPE.button, color: theme.text}}>Forward</Text>
-                </Pressable>
-                {!replying ? (
-                  <Pressable
-                    onPress={startReply}
-                    style={{
-                      height: 28,
-                      paddingHorizontal: SP(4),
-                      borderRadius: RADIUS.sm,
-                      backgroundColor: theme.accent,
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Text style={{...TYPE.button, color: theme.onAccent}}>
-                      Reply
-                    </Text>
-                  </Pressable>
-                ) : null}
+                  {!replying ? (
+                    <Pressable
+                      onPress={startReply}
+                      style={({hovered, pressed}) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: SP(1.5),
+                        height: 28,
+                        paddingHorizontal: SP(4),
+                        borderRadius: RADIUS.sm,
+                        backgroundColor: theme.accent,
+                        opacity: hovered || pressed ? 0.9 : 1,
+                        justifyContent: 'center',
+                      })}
+                    >
+                      <Symbol name="arrowshape.turn.up.left" size={14} color={theme.onAccent} />
+                      <Text style={{...TYPE.button, color: theme.onAccent}}>
+                        Reply
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
               <ThreadView
                 messages={thread}
@@ -771,7 +794,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{fontSize: 24, color: theme.textFaint}}>✉</Text>
+                <Symbol name="envelope" size={24} color={theme.textFaint} />
               </View>
               <Text style={{...TYPE.title, fontSize: 15, color: theme.text}}>
                 No message selected

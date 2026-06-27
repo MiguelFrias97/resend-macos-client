@@ -1,5 +1,6 @@
 import React from 'react';
 import {View, Text, Pressable} from 'react-native';
+import Symbol from '../native/Symbol';
 import {isDangerousFilename, typeMismatch} from '../files/attachmentSafety';
 import {SP, RADIUS, TYPE} from './designTokens';
 import {useTheme} from './useTheme';
@@ -42,7 +43,11 @@ export default function AttachmentTray({attachments, onSave}) {
               borderColor: risky ? theme.danger : theme.border,
               backgroundColor: theme.surface2,
             }}>
-            {risky ? <Text style={{color: theme.danger}}>⚠</Text> : null}
+            <Symbol
+              name={risky ? 'exclamationmark.triangle.fill' : 'doc'}
+              size={15}
+              color={risky ? theme.danger : theme.accent}
+            />
             <Text style={{fontSize: 13, fontWeight: '500', color: theme.text}}>
               {a.filename}
             </Text>

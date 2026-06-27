@@ -3,6 +3,7 @@ import {FlatList, Pressable, View, Text} from 'react-native';
 import {useTheme} from './useTheme';
 import {SP, TYPE} from './designTokens';
 import {formatTime} from './formatDate';
+import Symbol from '../native/Symbol';
 
 function senderName(from) {
   const m = /^(.*?)\s*</.exec(from || '');
@@ -19,8 +20,8 @@ export default function MessageList({messages, onSelect, selectedId, onToggleSta
         const selected = item.id === selectedId;
         const unread = !item.seen && item.direction !== 'sent';
         return (
-        <View
-          style={{
+        <Pressable
+          style={({hovered}) => ({
             flexDirection: 'row',
             alignItems: 'flex-start',
             columnGap: SP(2),
@@ -30,8 +31,12 @@ export default function MessageList({messages, onSelect, selectedId, onToggleSta
             paddingRight: SP(4),
             borderBottomWidth: 1,
             borderBottomColor: theme.divider,
-            backgroundColor: selected ? theme.selectedFill : 'transparent',
-          }}>
+            backgroundColor: selected
+              ? theme.selectedFill
+              : hovered
+              ? theme.hover
+              : 'transparent',
+          })}>
           <View style={{width: 8, marginTop: SP(1.5)}}>
             {unread ? (
               <View
@@ -80,19 +85,21 @@ export default function MessageList({messages, onSelect, selectedId, onToggleSta
                 accessibilityLabel={`Star ${item.subject}`}
                 onPress={() => onToggleStar && onToggleStar(item)}
                 style={{paddingHorizontal: SP(2), paddingVertical: SP(2)}}>
-                <Text style={{color: item.starred ? theme.star : theme.textMuted, fontSize: 16}}>
-                  {item.starred ? '★' : '☆'}
-                </Text>
+                <Symbol
+                  name={item.starred ? 'star.fill' : 'star'}
+                  size={15}
+                  color={item.starred ? theme.star : theme.textMuted}
+                />
               </Pressable>
               <Pressable
                 accessibilityLabel={`Archive ${item.subject}`}
                 onPress={() => onArchive && onArchive(item)}
                 style={{paddingHorizontal: SP(2), paddingVertical: SP(2)}}>
-                <Text style={{color: theme.textMuted, fontSize: 16}}>▾</Text>
+                <Symbol name="archivebox" size={15} color={theme.textMuted} />
               </Pressable>
             </>
           ) : null}
-        </View>
+        </Pressable>
         );
       }}
     />
