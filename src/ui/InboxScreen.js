@@ -52,6 +52,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   const [composeMode, setComposeMode] = useState(null); // null | 'compose' | 'forward'
   const [forwardData, setForwardData] = useState(null);
   const [fromIdentity, setFromIdentity] = useState('');
+  const [verifiedDomains, setVerifiedDomains] = useState([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sentToast, setSentToast] = useState('');
   const sentToastTimer = useRef(null);
@@ -141,6 +142,15 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       setReady(true);
       const savedFrom = await store.getSetting('fromIdentity');
       if (!cancelled && savedFrom) setFromIdentity(savedFrom);
+      // Verified sending domains power the From picker/validation (best-effort).
+      if (source.listVerifiedDomains) {
+        source
+          .listVerifiedDomains()
+          .then(d => {
+            if (!cancelled) setVerifiedDomains(d || []);
+          })
+          .catch(() => {});
+      }
       const savedTheme = await store.getSetting('themeOverride');
       if (!cancelled && savedTheme) {
         setThemeChoice(savedTheme);
@@ -588,6 +598,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
           <SettingsScreen
             defaultFrom={fromIdentity}
             onChangeFrom={onChangeFrom}
+            verifiedDomains={verifiedDomains}
             themeOverride={themeChoice}
             onChangeTheme={onChangeTheme}
             onSignOut={onSignOutPressed}
@@ -609,6 +620,7 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
         <ComposeSheet
           mode={composeMode}
           defaultFrom={fromIdentity}
+          verifiedDomains={verifiedDomains}
           forward={forwardData}
           onChangeFrom={onChangeFrom}
           onSend={onSendMail}

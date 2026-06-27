@@ -4,6 +4,7 @@ import Composer from './Composer';
 import ComposerFooter from './ComposerFooter';
 import OutgoingAttachments from './OutgoingAttachments';
 import RecipientField from './RecipientField';
+import FromField from './FromField';
 import {pickAttachments} from '../native/AttachmentFile';
 import {useTheme} from './useTheme';
 import {
@@ -17,6 +18,7 @@ export default function ComposeSheet({
   defaultFrom = '',
   mode = 'compose',
   forward,
+  verifiedDomains = [],
   onSend,
   onClose,
   onChangeFrom,
@@ -118,15 +120,6 @@ export default function ComposeSheet({
     }
   };
 
-  const fieldStyle = {
-    ...TYPE.meta,
-    color: theme.text,
-    height: 38,
-    paddingHorizontal: SP(2),
-    borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
-  };
-
   const subjectStyle = {
     ...TYPE.sender,
     fontWeight: '400',
@@ -190,20 +183,22 @@ export default function ComposeSheet({
       <View
         style={{
           flexDirection: 'row',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           paddingLeft: SP(2),
+          paddingVertical: SP(1.5),
           borderBottomWidth: 1,
           borderBottomColor: theme.divider,
         }}>
-        <Text style={{...TYPE.meta, width: 56, color: theme.textMuted}}>From</Text>
-        <TextInput
-          placeholder="From"
-          placeholderTextColor={theme.textMuted}
+        <Text style={{...TYPE.meta, width: 56, color: theme.textMuted, marginTop: SP(1)}}>
+          From
+        </Text>
+        <FromField
           value={from}
-          onChangeText={setFrom}
+          onChange={setFrom}
           onBlur={persistFrom}
-          autoCapitalize="none"
-          style={{...fieldStyle, flex: 1, borderBottomWidth: 0, paddingLeft: 0}}
+          verifiedDomains={verifiedDomains}
+          placeholder="From"
+          style={{flex: 1}}
         />
       </View>
       <TextInput

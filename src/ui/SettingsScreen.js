@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
-import {View, Text, TextInput, Pressable} from 'react-native';
+import {View, Text, Pressable} from 'react-native';
+import FromField from './FromField';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE} from './designTokens';
 
@@ -12,6 +13,7 @@ const THEME_OPTIONS = [
 export default function SettingsScreen({
   defaultFrom = '',
   onChangeFrom,
+  verifiedDomains = [],
   themeOverride = 'auto',
   onChangeTheme,
   onSignOut,
@@ -46,30 +48,19 @@ export default function SettingsScreen({
         }}>
         <View
           style={{
-            minHeight: 44,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
             paddingHorizontal: SP(3),
             paddingVertical: SP(2),
             borderBottomWidth: 1,
             borderBottomColor: theme.divider,
           }}>
-          <Text style={{...TYPE.body, color: theme.textMuted}}>From address</Text>
-          <TextInput
-            placeholder="you@yourdomain.com"
-            placeholderTextColor={theme.textMuted}
+          <Text style={{...TYPE.body, color: theme.textMuted, marginBottom: SP(1)}}>
+            From address
+          </Text>
+          <FromField
             value={from}
-            onChangeText={setFrom}
+            onChange={setFrom}
             onBlur={() => onChangeFrom && onChangeFrom(from)}
-            autoCapitalize="none"
-            style={{
-              flex: 1,
-              textAlign: 'right',
-              marginLeft: SP(3),
-              ...TYPE.body,
-              color: theme.text,
-            }}
+            verifiedDomains={verifiedDomains}
           />
         </View>
 
