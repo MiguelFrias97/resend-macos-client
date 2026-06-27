@@ -116,11 +116,11 @@ test('assembleReplyPayload builds a complete Resend send payload', () => {
 test('reply From uses the received-at address, falling back to a configured identity', () => {
   // Normal: From = the address the mail was received at (original.to[0]).
   const a = assembleReplyPayload({
-    original: {from: 'Them <them@acme.com>', to: ['vendas@mfrias.com'], subject: 'Hi'},
+    original: {from: 'Them <them@acme.com>', to: ['sender@example.com'], subject: 'Hi'},
     replyHtml: '<p>x</p>',
     originalHtml: '',
   });
-  expect(a.from).toBe('vendas@mfrias.com');
+  expect(a.from).toBe('sender@example.com');
   expect(a.to).toBe('them@acme.com');
 
   // Legacy message with no stored recipient: fall back to the passed identity.
