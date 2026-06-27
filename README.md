@@ -51,8 +51,7 @@ Native modules (Swift) ──────────── Keychain · MessageB
   MenuEvents (menu-bar shortcuts) · SystemAccent · Notifications
 ```
 
-The full design spec and per-milestone plans live in `docs/superpowers/specs/` and
-`docs/superpowers/plans/`.
+Each layer is an isolated module with a focused responsibility, unit-tested in `__tests__/`.
 
 ## Prerequisites
 
@@ -140,7 +139,7 @@ a signed/notarized release path is a deferred follow-up.
 The Resend received-email / attachment responses use **snake_case** (`message_id`, `created_at`,
 `content_type`, `content_disposition`, `download_url`); the payload validators
 (`src/data/validators.js`) map these to camelCase and have been reconciled against the documented
-shapes — see `docs/API-VERIFICATION.md`.
+shapes.
 
 ## Known limitations
 

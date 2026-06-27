@@ -39,12 +39,13 @@ Out of scope:
 
 - Issues in the Resend API itself (report to Resend).
 - The **local development build is ad-hoc / self-signed**; lack of notarization
-  and the repeated Keychain prompts that come with an unsigned build are known
-  and documented (`docs/SECURITY-AUDIT.md`), not vulnerabilities.
+  and the repeated Keychain prompts that come with an unsigned build are known,
+  not vulnerabilities (see the README for the `npm run setup-signing` mitigation).
 - Denial of service / resource exhaustion.
 
 ## Hardening notes
 
-This project has been through several security reviews; see
-[`docs/SECURITY-AUDIT.md`](docs/SECURITY-AUDIT.md) for the threat model, the
-findings, and the compensating controls.
+The app keeps its cache in a **SQLCipher-encrypted** database (key in the macOS
+Keychain), renders email in a CSP-locked `WKWebView` with JavaScript disabled and
+remote content blocked by default, parameterizes all SQL, and strips CR/LF from
+anything that becomes an outbound header.
