@@ -20,8 +20,7 @@ npm run macos      # build + run via Metro (hot reload)
 npm run install:macos   # build a standalone app into /Applications
 ```
 
-See [`README.md`](README.md) for the architecture overview and `docs/` for the
-design specs, API verification, and the security audit.
+See [`README.md`](README.md) for the architecture overview.
 
 ## Ground rules
 
@@ -36,7 +35,6 @@ design specs, API verification, and the security audit.
 - **Security-sensitive paths** (the HTML sanitizer/CSP, SQL, Keychain, outbound
   header/address assembly, attachment handling) need care — keep parameterized
   SQL, the CSP intact, and CR/LF stripped from anything that becomes a header.
-  See `docs/SECURITY-AUDIT.md`.
 - For anything non-trivial, **open an issue first** to align on the approach.
 
 ## Reporting security issues
