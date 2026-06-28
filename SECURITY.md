@@ -8,7 +8,7 @@ seriously.
 
 **Please do not open a public issue for security problems.**
 
-Report privately via GitHub's [private vulnerability reporting](https://github.com/MiguelFrias97/resend-client/security/advisories/new)
+Report privately via GitHub's [private vulnerability reporting](https://github.com/MiguelFrias97/resend-macos-client/security/advisories/new)
 (Security → Report a vulnerability). Include:
 
 - what you found and where (file / flow),
