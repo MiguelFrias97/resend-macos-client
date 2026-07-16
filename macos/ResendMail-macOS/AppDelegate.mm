@@ -3,8 +3,13 @@
 #import <AppKit/AppKit.h>
 #import <React/RCTBundleURLProvider.h>
 #import <ReactAppDependencyProvider/RCTAppDependencyProvider.h>
+#import "ResendMail-Swift.h"
 
 @implementation AppDelegate
+
+// Retained for the app's lifetime so App Nap can't throttle/coalesce the JS
+// sync timer (src/core/sync.js) when the window is buried in the background.
+static id<NSObject> gSyncActivity = nil;
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
@@ -23,6 +28,14 @@
   self.window.releasedWhenClosed = NO;
 
   [self installMessageMenu];
+
+  // Ask for notification permission once (see Notifications.swift).
+  [Notifications authorize];
+
+  // Keep the periodic mail sync running at cadence in the background.
+  gSyncActivity = [[NSProcessInfo processInfo]
+      beginActivityWithOptions:NSActivityBackground
+                        reason:@"Periodic mail sync"];
 }
 
 // Add a "Message" menu with key equivalents. Each item posts an RMMenuCommand
