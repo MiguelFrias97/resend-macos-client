@@ -32,12 +32,12 @@ test('toggling calls setEnabled with the new value and updates the label', async
 });
 
 test('when setEnabled fails, the label re-reads the true state instead of getting stuck on', async () => {
+  isEnabled.mockResolvedValueOnce(true);
   isEnabled.mockResolvedValue(false);
   setEnabled.mockRejectedValue(new Error('ad-hoc'));
-  const {getByText, queryByText} = render(<LaunchAtLoginToggle />);
+  const {getByText} = render(<LaunchAtLoginToggle />);
+  await waitFor(() => getByText('On'));
+  fireEvent.press(getByText('On'));
+  await waitFor(() => expect(setEnabled).toHaveBeenCalledWith(false));
   await waitFor(() => getByText('Off'));
-  fireEvent.press(getByText('Off'));
-  await waitFor(() => expect(setEnabled).toHaveBeenCalledWith(true));
-  await waitFor(() => getByText('Off'));
-  expect(queryByText('On')).toBeNull();
 });

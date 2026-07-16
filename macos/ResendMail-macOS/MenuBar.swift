@@ -43,6 +43,13 @@ class MenuBar: NSObject {
     }
   }
 
+  deinit {
+    let item = statusItem
+    DispatchQueue.main.async {
+      if let item = item { NSStatusBar.system.removeStatusItem(item) }
+    }
+  }
+
   @objc private func openInbox() {
     NSApp.activate(ignoringOtherApps: true)
     NSApp.windows.first?.makeKeyAndOrderFront(nil)
