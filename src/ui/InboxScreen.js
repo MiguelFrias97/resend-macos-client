@@ -35,7 +35,13 @@ import {
   isInlineImage,
 } from '../files/attachmentSafety';
 
-export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) {
+export default function InboxScreen({
+  apiKey,
+  makeStore,
+  makeSource,
+  onSignOut,
+  freshSignIn = false,
+}) {
   const theme = useTheme();
   const [messages, setMessages] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -144,13 +150,18 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       if (cancelled) return;
       servicesRef.current = {store, source, sender};
       setReady(true);
-      // First launch only: turn on Launch at login by default (user can undo
-      // it in Settings). Non-fatal.
-      maybeInitLoginItem({
-        getSetting: store.getSetting,
-        setSetting: store.setSetting,
-        setEnabled: setLoginItemEnabled,
-      }).catch(() => {});
+      // Fresh sign-in only: turn on Launch at login by default (user can undo it
+      // in Settings). Gated on a genuinely new onboarding so a user upgrading
+      // from a build without this feature — who lands here straight from a saved
+      // key — isn't silently enrolled in launch-at-login they never chose.
+      // Non-fatal.
+      if (freshSignIn) {
+        maybeInitLoginItem({
+          getSetting: store.getSetting,
+          setSetting: store.setSetting,
+          setEnabled: setLoginItemEnabled,
+        }).catch(() => {});
+      }
       const savedFrom = await store.getSetting('fromIdentity');
       if (!cancelled && savedFrom) setFromIdentity(savedFrom);
       // Verified sending domains power the From picker/validation (best-effort).
@@ -203,17 +214,21 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       stop();
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [apiKey, makeStore, makeSource, bootSeq]);
+  }, [apiKey, makeStore, makeSource, bootSeq, freshSignIn]);
 
   // Subscribe once to native app-menu commands; the listener reads the latest
   // handler from the ref (assigned every render), so it never goes stale and the
   // root view never needs focus.
   useEffect(() => onMenuCommand(c => menuHandlerRef.current(c)), []);
 
-  // Mirror the inbox unread count onto the menu-bar badge.
+  // Mirror the inbox unread count onto the menu-bar badge (keyed on the value so
+  // an unrelated folder recount doesn't re-push the same number).
   useEffect(() => {
     setMenuBarUnread(counts.inbox || 0);
-  }, [counts]);
+  }, [counts.inbox]);
+  // Clear the badge when the inbox unmounts (e.g. sign-out) so a prior account's
+  // unread count doesn't linger on the persistent menu-bar item.
+  useEffect(() => () => setMenuBarUnread(0), []);
 
   // Clear the transient "Message sent" timer on unmount (e.g. sign-out within
   // 2.5s of a send) so it doesn't fire setState on an unmounted component.

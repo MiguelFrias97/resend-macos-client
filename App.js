@@ -7,6 +7,10 @@ import {getApiKey} from './src/native/Keychain';
 export default function App() {
   const [ready, setReady] = useState(false);
   const [apiKey, setApiKey] = useState(null);
+  // True only when the current session started from a fresh onboarding (not a
+  // key restored from the Keychain). Gates the first-run launch-at-login default
+  // so upgrading users aren't auto-enrolled.
+  const [freshSignIn, setFreshSignIn] = useState(false);
 
   useEffect(() => {
     getApiKey().then(k => {
@@ -23,8 +27,20 @@ export default function App() {
     );
   }
   return apiKey ? (
-    <InboxScreen apiKey={apiKey} onSignOut={() => setApiKey(null)} />
+    <InboxScreen
+      apiKey={apiKey}
+      freshSignIn={freshSignIn}
+      onSignOut={() => {
+        setFreshSignIn(false);
+        setApiKey(null);
+      }}
+    />
   ) : (
-    <Onboarding onComplete={k => setApiKey(k)} />
+    <Onboarding
+      onComplete={k => {
+        setFreshSignIn(true);
+        setApiKey(k);
+      }}
+    />
   );
 }

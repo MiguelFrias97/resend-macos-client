@@ -8,7 +8,7 @@ jest.mock('../../src/native/LoginItem', () => ({
 jest.mock('../../src/ui/useTheme', () => ({
   useTheme: () => ({
     text: '#000', textMuted: '#666', accent: '#07f',
-    surface2: '#eee', border: '#ccc',
+    surface2: '#eee', border: '#ccc', onAccent: '#fff',
   }),
 }));
 

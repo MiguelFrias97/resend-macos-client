@@ -52,7 +52,11 @@ class MenuBar: NSObject {
 
   @objc private func openInbox() {
     NSApp.activate(ignoringOtherApps: true)
-    NSApp.windows.first?.makeKeyAndOrderFront(nil)
+    // Bring the main content window forward. NSApp.windows also contains the
+    // status-item window (and any panels) in an unspecified order, so pick the
+    // first window that can actually become main rather than windows.first.
+    let target = NSApp.windows.first(where: { $0.canBecomeMain }) ?? NSApp.windows.first
+    target?.makeKeyAndOrderFront(nil)
   }
 
   @objc private func syncNow() {

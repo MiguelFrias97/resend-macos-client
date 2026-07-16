@@ -66,7 +66,7 @@ export default function LaunchAtLoginToggle() {
           borderWidth: 1,
           borderColor: on ? theme.accent : theme.border,
         }}>
-        <Text style={{...TYPE.button, color: on ? '#fff' : theme.text}}>
+        <Text style={{...TYPE.button, color: on ? theme.onAccent : theme.text}}>
           {on ? 'On' : 'Off'}
         </Text>
       </Pressable>

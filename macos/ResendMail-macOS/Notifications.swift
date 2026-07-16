@@ -7,17 +7,12 @@ import React
 class Notifications: NSObject {
   @objc static func requiresMainQueueSetup() -> Bool { false }
 
-  // Cached authorization result, set once by authorize().
-  private static var granted = false
-
-  // Request notification permission exactly once, at app launch. Safe to call
-  // more than once — UNUserNotificationCenter only prompts the first time — but
-  // AppDelegate calls it a single time in applicationDidFinishLaunching.
+  // Prompt for notification permission once, at app launch (AppDelegate calls
+  // this in applicationDidFinishLaunching). The system only shows the prompt the
+  // first time; later calls are no-ops.
   @objc static func authorize() {
     UNUserNotificationCenter.current()
-      .requestAuthorization(options: [.alert, .sound]) { ok, _ in
-        granted = ok
-      }
+      .requestAuthorization(options: [.alert, .sound]) { _, _ in }
   }
 
   @objc(notify:body:)
@@ -25,13 +20,21 @@ class Notifications: NSObject {
     DispatchQueue.main.async {
       // Don't notify while the app is focused.
       if NSApp.isActive { return }
-      guard Notifications.granted else { return }
-      let content = UNMutableNotificationContent()
-      content.title = title
-      content.body = body
-      UNUserNotificationCenter.current().add(
-        UNNotificationRequest(
-          identifier: UUID().uuidString, content: content, trigger: nil))
+      let center = UNUserNotificationCenter.current()
+      // Read the live authorization status on every call rather than caching a
+      // one-time flag: this way a permission the user grants later in the session
+      // takes effect immediately, and we never post after a denial. Avoids the
+      // stale-gate and cross-thread-static problems of a cached Bool.
+      center.getNotificationSettings { settings in
+        guard settings.authorizationStatus == .authorized
+          || settings.authorizationStatus == .provisional else { return }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        center.add(
+          UNNotificationRequest(
+            identifier: UUID().uuidString, content: content, trigger: nil))
+      }
     }
   }
 }

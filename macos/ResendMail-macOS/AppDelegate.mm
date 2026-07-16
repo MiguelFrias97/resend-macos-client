@@ -32,9 +32,12 @@ static id<NSObject> gSyncActivity = nil;
   // Ask for notification permission once (see Notifications.swift).
   [Notifications authorize];
 
-  // Keep the periodic mail sync running at cadence in the background.
+  // Keep the periodic mail sync running at cadence in the background. Use the
+  // UserInitiated tier (allowing idle system sleep) because it actually opts out
+  // of App Nap / timer throttling — NSActivityBackground is the low-priority tier
+  // the system is free to defer, which would defeat the purpose.
   gSyncActivity = [[NSProcessInfo processInfo]
-      beginActivityWithOptions:NSActivityBackground
+      beginActivityWithOptions:NSActivityUserInitiatedAllowingIdleSystemSleep
                         reason:@"Periodic mail sync"];
 }
 
