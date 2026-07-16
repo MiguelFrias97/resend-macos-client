@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, Pressable} from 'react-native';
 import FromField from './FromField';
+import LaunchAtLoginToggle from './LaunchAtLoginToggle';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE} from './designTokens';
 
@@ -101,6 +102,10 @@ export default function SettingsScreen({
               </Pressable>
             ))}
           </View>
+        </View>
+
+        <View style={{borderTopWidth: 1, borderTopColor: theme.divider}}>
+          <LaunchAtLoginToggle />
         </View>
       </View>
 
