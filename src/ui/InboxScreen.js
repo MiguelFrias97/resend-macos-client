@@ -13,6 +13,7 @@ import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE, ELEV} from './designTokens';
 import {setOverride} from './themeOverride';
 import {notify} from '../native/Notifications';
+import {setUnread as setMenuBarUnread} from '../native/MenuBar';
 import {createLocalStore} from '../data/localStore';
 import {openEncryptedDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
@@ -199,6 +200,11 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   // handler from the ref (assigned every render), so it never goes stale and the
   // root view never needs focus.
   useEffect(() => onMenuCommand(c => menuHandlerRef.current(c)), []);
+
+  // Mirror the inbox unread count onto the menu-bar badge.
+  useEffect(() => {
+    setMenuBarUnread(counts.inbox || 0);
+  }, [counts]);
 
   // Clear the transient "Message sent" timer on unmount (e.g. sign-out within
   // 2.5s of a send) so it doesn't fire setState on an unmounted component.
@@ -578,6 +584,10 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   // every render so the once-only subscription always sees current state — and so
   // the root view never has to be focusable (which swallowed mouse clicks before).
   menuHandlerRef.current = cmd => {
+    if (cmd === 'syncNow') {
+      onRefresh();
+      return;
+    }
     // Ignore menu shortcuts while a full-window screen is already open, so e.g.
     // ⌘N while typing in compose/settings doesn't reset or stack a screen.
     if (composeMode || settingsOpen) return;
