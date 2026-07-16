@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {View, Text, Pressable} from 'react-native';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE} from './designTokens';
@@ -15,14 +15,17 @@ export default function LaunchAtLoginToggle() {
   const theme = useTheme();
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    let live = true;
-    loginIsEnabled().then(v => {
-      if (live) setOn(!!v);
-    });
+    mountedRef.current = true;
+    loginIsEnabled()
+      .then(v => {
+        if (mountedRef.current) setOn(!!v);
+      })
+      .catch(() => {});
     return () => {
-      live = false;
+      mountedRef.current = false;
     };
   }, []);
 
@@ -31,11 +34,12 @@ export default function LaunchAtLoginToggle() {
     setBusy(true);
     try {
       const result = await loginSetEnabled(!on);
-      setOn(!!result);
+      if (mountedRef.current) setOn(!!result);
     } catch (e) {
-      setOn(await loginIsEnabled());
+      const state = await loginIsEnabled();
+      if (mountedRef.current) setOn(state);
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
 
