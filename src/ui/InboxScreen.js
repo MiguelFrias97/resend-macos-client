@@ -14,6 +14,8 @@ import {SP, RADIUS, TYPE, ELEV} from './designTokens';
 import {setOverride} from './themeOverride';
 import {notify} from '../native/Notifications';
 import {setUnread as setMenuBarUnread} from '../native/MenuBar';
+import {setEnabled as setLoginItemEnabled} from '../native/LoginItem';
+import {maybeInitLoginItem} from '../core/loginItemInit';
 import {createLocalStore} from '../data/localStore';
 import {openEncryptedDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
@@ -142,6 +144,13 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       if (cancelled) return;
       servicesRef.current = {store, source, sender};
       setReady(true);
+      // First launch only: turn on Launch at login by default (user can undo
+      // it in Settings). Non-fatal.
+      maybeInitLoginItem({
+        getSetting: store.getSetting,
+        setSetting: store.setSetting,
+        setEnabled: setLoginItemEnabled,
+      }).catch(() => {});
       const savedFrom = await store.getSetting('fromIdentity');
       if (!cancelled && savedFrom) setFromIdentity(savedFrom);
       // Verified sending domains power the From picker/validation (best-effort).
