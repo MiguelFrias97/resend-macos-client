@@ -13,7 +13,10 @@ import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE, ELEV} from './designTokens';
 import {setOverride} from './themeOverride';
 import {notify} from '../native/Notifications';
-import {setUnread as setMenuBarUnread} from '../native/MenuBar';
+import {
+  setUnread as setMenuBarUnread,
+  setVisible as setMenuBarVisible,
+} from '../native/MenuBar';
 import {setEnabled as setLoginItemEnabled} from '../native/LoginItem';
 import {maybeInitLoginItem} from '../core/loginItemInit';
 import {createLocalStore} from '../data/localStore';
@@ -226,9 +229,16 @@ export default function InboxScreen({
   useEffect(() => {
     setMenuBarUnread(counts.inbox || 0);
   }, [counts.inbox]);
-  // Clear the badge when the inbox unmounts (e.g. sign-out) so a prior account's
-  // unread count doesn't linger on the persistent menu-bar item.
-  useEffect(() => () => setMenuBarUnread(0), []);
+  // Show the menu-bar item while signed in; on unmount (e.g. sign-out) clear the
+  // badge and hide the item so it doesn't linger with a stale count and dead
+  // Sync Now / Open Inbox actions on the onboarding screen.
+  useEffect(() => {
+    setMenuBarVisible(true);
+    return () => {
+      setMenuBarUnread(0);
+      setMenuBarVisible(false);
+    };
+  }, []);
 
   // Clear the transient "Message sent" timer on unmount (e.g. sign-out within
   // 2.5s of a send) so it doesn't fire setState on an unmounted component.

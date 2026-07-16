@@ -43,6 +43,14 @@ class MenuBar: NSObject {
     }
   }
 
+  // Show/hide the status item. Hidden while signed out so the menu bar doesn't
+  // keep an envelope with actions (Sync Now / Open Inbox) that no longer have a
+  // signed-in inbox to act on.
+  @objc(setVisible:)
+  func setVisible(_ visible: Bool) {
+    DispatchQueue.main.async { self.statusItem?.isVisible = visible }
+  }
+
   deinit {
     let item = statusItem
     DispatchQueue.main.async {

@@ -1,7 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {View, Text, Pressable} from 'react-native';
-import {useTheme} from './useTheme';
-import {SP, RADIUS, TYPE} from './designTokens';
+import {SettingsRow, SettingsPill} from './settingsControls';
 import {
   isEnabled as loginIsEnabled,
   setEnabled as loginSetEnabled,
@@ -12,7 +10,6 @@ import {
 // failure (e.g. an ad-hoc build that can't register) it re-reads and shows the
 // true state rather than a wishful one.
 export default function LaunchAtLoginToggle() {
-  const theme = useTheme();
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const mountedRef = useRef(true);
@@ -44,32 +41,14 @@ export default function LaunchAtLoginToggle() {
   };
 
   return (
-    <View
-      style={{
-        minHeight: 44,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: SP(3),
-        paddingVertical: SP(2),
-      }}>
-      <Text style={{...TYPE.body, color: theme.textMuted}}>Launch at login</Text>
-      <Pressable
+    <SettingsRow label="Launch at login">
+      <SettingsPill
         accessibilityRole="switch"
         accessibilityState={{checked: on}}
+        selected={on}
         onPress={toggle}
-        style={{
-          paddingVertical: SP(1.5),
-          paddingHorizontal: SP(3),
-          borderRadius: RADIUS.sm,
-          backgroundColor: on ? theme.accent : 'transparent',
-          borderWidth: 1,
-          borderColor: on ? theme.accent : theme.border,
-        }}>
-        <Text style={{...TYPE.button, color: on ? theme.onAccent : theme.text}}>
-          {on ? 'On' : 'Off'}
-        </Text>
-      </Pressable>
-    </View>
+        label={on ? 'On' : 'Off'}
+      />
+    </SettingsRow>
   );
 }

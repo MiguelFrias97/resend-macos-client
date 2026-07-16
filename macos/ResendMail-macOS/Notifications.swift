@@ -22,19 +22,35 @@ class Notifications: NSObject {
       if NSApp.isActive { return }
       let center = UNUserNotificationCenter.current()
       // Read the live authorization status on every call rather than caching a
-      // one-time flag: this way a permission the user grants later in the session
-      // takes effect immediately, and we never post after a denial. Avoids the
+      // one-time flag: a permission the user grants later in the session takes
+      // effect immediately, and we never post after a denial. Avoids the
       // stale-gate and cross-thread-static problems of a cached Bool.
       center.getNotificationSettings { settings in
-        guard settings.authorizationStatus == .authorized
-          || settings.authorizationStatus == .provisional else { return }
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        center.add(
-          UNNotificationRequest(
-            identifier: UUID().uuidString, content: content, trigger: nil))
+        switch settings.authorizationStatus {
+        case .authorized, .provisional:
+          Notifications.deliver(center, title, body)
+        case .notDetermined:
+          // Fresh install: the launch-time prompt hasn't been answered yet. Ride
+          // it (a concurrent request only shows one prompt) and deliver on grant
+          // so the first new-mail notification isn't silently dropped.
+          center.requestAuthorization(options: [.alert, .sound]) { ok, _ in
+            if ok { Notifications.deliver(center, title, body) }
+          }
+        default:
+          return
+        }
       }
     }
+  }
+
+  private static func deliver(
+    _ center: UNUserNotificationCenter, _ title: String, _ body: String
+  ) {
+    let content = UNMutableNotificationContent()
+    content.title = title
+    content.body = body
+    center.add(
+      UNNotificationRequest(
+        identifier: UUID().uuidString, content: content, trigger: nil))
   }
 }

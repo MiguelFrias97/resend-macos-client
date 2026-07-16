@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import {View, Text, Pressable} from 'react-native';
 import FromField from './FromField';
 import LaunchAtLoginToggle from './LaunchAtLoginToggle';
+import {SettingsRow, SettingsPill} from './settingsControls';
 import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE} from './designTokens';
 
@@ -65,44 +66,18 @@ export default function SettingsScreen({
           />
         </View>
 
-        <View
-          style={{
-            minHeight: 44,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: SP(3),
-            paddingVertical: SP(2),
-          }}>
-          <Text style={{...TYPE.body, color: theme.textMuted}}>Appearance</Text>
-          <View style={{flexDirection: 'row'}}>
-            {THEME_OPTIONS.map(opt => (
-              <Pressable
-                key={opt.key}
-                accessibilityLabel={`Theme ${opt.label}`}
-                onPress={() => onChangeTheme && onChangeTheme(opt.key)}
-                style={{
-                  paddingVertical: SP(1.5),
-                  paddingHorizontal: SP(3),
-                  marginLeft: SP(2),
-                  borderRadius: RADIUS.sm,
-                  backgroundColor:
-                    themeOverride === opt.key ? theme.selectedBg : 'transparent',
-                  borderWidth: 1,
-                  borderColor:
-                    themeOverride === opt.key ? theme.accent : theme.border,
-                }}>
-                <Text
-                  style={{
-                    ...TYPE.button,
-                    color: themeOverride === opt.key ? theme.onAccent : theme.text,
-                  }}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        <SettingsRow label="Appearance">
+          {THEME_OPTIONS.map(opt => (
+            <SettingsPill
+              key={opt.key}
+              accessibilityLabel={`Theme ${opt.label}`}
+              selected={themeOverride === opt.key}
+              onPress={() => onChangeTheme && onChangeTheme(opt.key)}
+              spaced
+              label={opt.label}
+            />
+          ))}
+        </SettingsRow>
 
         <View style={{borderTopWidth: 1, borderTopColor: theme.divider}}>
           <LaunchAtLoginToggle />
