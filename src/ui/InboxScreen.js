@@ -13,6 +13,12 @@ import {useTheme} from './useTheme';
 import {SP, RADIUS, TYPE, ELEV} from './designTokens';
 import {setOverride} from './themeOverride';
 import {notify} from '../native/Notifications';
+import {
+  setUnread as setMenuBarUnread,
+  setVisible as setMenuBarVisible,
+} from '../native/MenuBar';
+import {setEnabled as setLoginItemEnabled} from '../native/LoginItem';
+import {maybeInitLoginItem} from '../core/loginItemInit';
 import {createLocalStore} from '../data/localStore';
 import {openEncryptedDb} from '../data/db';
 import {createMailSource} from '../net/mailSource';
@@ -32,7 +38,13 @@ import {
   isInlineImage,
 } from '../files/attachmentSafety';
 
-export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) {
+export default function InboxScreen({
+  apiKey,
+  makeStore,
+  makeSource,
+  onSignOut,
+  freshSignIn = false,
+}) {
   const theme = useTheme();
   const [messages, setMessages] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -141,6 +153,18 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       if (cancelled) return;
       servicesRef.current = {store, source, sender};
       setReady(true);
+      // Fresh sign-in only: turn on Launch at login by default (user can undo it
+      // in Settings). Gated on a genuinely new onboarding so a user upgrading
+      // from a build without this feature — who lands here straight from a saved
+      // key — isn't silently enrolled in launch-at-login they never chose.
+      // Non-fatal.
+      if (freshSignIn) {
+        maybeInitLoginItem({
+          getSetting: store.getSetting,
+          setSetting: store.setSetting,
+          setEnabled: setLoginItemEnabled,
+        }).catch(() => {});
+      }
       const savedFrom = await store.getSetting('fromIdentity');
       if (!cancelled && savedFrom) setFromIdentity(savedFrom);
       // Verified sending domains power the From picker/validation (best-effort).
@@ -193,12 +217,28 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
       stop();
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [apiKey, makeStore, makeSource, bootSeq]);
+  }, [apiKey, makeStore, makeSource, bootSeq, freshSignIn]);
 
   // Subscribe once to native app-menu commands; the listener reads the latest
   // handler from the ref (assigned every render), so it never goes stale and the
   // root view never needs focus.
   useEffect(() => onMenuCommand(c => menuHandlerRef.current(c)), []);
+
+  // Mirror the inbox unread count onto the menu-bar badge (keyed on the value so
+  // an unrelated folder recount doesn't re-push the same number).
+  useEffect(() => {
+    setMenuBarUnread(counts.inbox || 0);
+  }, [counts.inbox]);
+  // Show the menu-bar item while signed in; on unmount (e.g. sign-out) clear the
+  // badge and hide the item so it doesn't linger with a stale count and dead
+  // Sync Now / Open Inbox actions on the onboarding screen.
+  useEffect(() => {
+    setMenuBarVisible(true);
+    return () => {
+      setMenuBarUnread(0);
+      setMenuBarVisible(false);
+    };
+  }, []);
 
   // Clear the transient "Message sent" timer on unmount (e.g. sign-out within
   // 2.5s of a send) so it doesn't fire setState on an unmounted component.
@@ -578,6 +618,10 @@ export default function InboxScreen({apiKey, makeStore, makeSource, onSignOut}) 
   // every render so the once-only subscription always sees current state — and so
   // the root view never has to be focusable (which swallowed mouse clicks before).
   menuHandlerRef.current = cmd => {
+    if (cmd === 'syncNow') {
+      onRefresh();
+      return;
+    }
     // Ignore menu shortcuts while a full-window screen is already open, so e.g.
     // ⌘N while typing in compose/settings doesn't reset or stack a screen.
     if (composeMode || settingsOpen) return;
