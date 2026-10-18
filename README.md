@@ -143,9 +143,10 @@ shapes.
 
 ## Known limitations
 
-- **Threading** uses a subject + participants heuristic. The list endpoint exposes only `message_id`
-  (not `in_reply_to`/`references`), so RFC-header threading would require parsing the retrieve
-  endpoint's `headers` and a re-threading pass.
+- **Threading** starts from a subject + participants heuristic, because the list endpoint exposes
+  only `message_id`. A message is re-threaded by its `In-Reply-To`/`References` headers only when
+  its body is first opened (the retrieve endpoint carries them), so unopened mail can sit in the
+  wrong thread until then.
 - **Sending** requires the domain to be verified for **sending** in Resend (separate from inbound
   receiving). The From field surfaces your verified domains; an unverified From is rejected by Resend.
 - **Distribution**: the local build is **ad-hoc / self-signed** (`npm run install:macos`). A
