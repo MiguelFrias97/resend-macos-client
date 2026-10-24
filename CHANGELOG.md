@@ -9,9 +9,11 @@ and push the tag. Bump the minor version for new features and the patch version 
 
 ## Unreleased
 
+## 0.1.0 - 2026-10-24
+
+The first tagged version.
+
 ### Changed
 
 - **The CocoaPods toolchain runs on Ruby 4.0.9.** `.ruby-version` pins it, the Gemfile requires it
-  (it accepted any Ruby from 2.6.10), and `Gemfile.lock` records it (it recorded 4.0.5).
-
-Nothing has been tagged yet. The first release will be `v0.1.0`.
+  (it accepted any Ruby from 2.6.10), and `Gemfile.lock` records it (it recorded 4.0.5) (#37).
